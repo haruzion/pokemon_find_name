@@ -40,6 +40,17 @@
             100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
         }
 
+        @keyframes sparkle {
+            0%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+            50% { transform: scale(1.5) rotate(180deg); opacity: 1; }
+        }
+
+        @keyframes new-badge-pop {
+            0% { transform: scale(0) rotate(-20deg); }
+            60% { transform: scale(1.2) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
         .confetti {
             position: fixed;
             width: 10px;
@@ -47,6 +58,29 @@
             pointer-events: none;
             z-index: 1000;
             border-radius: 2px;
+        }
+
+        .sparkle {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            pointer-events: none;
+            z-index: 1100;
+            animation: sparkle 0.8s ease-out;
+        }
+
+        .new-badge {
+            position: fixed;
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: white;
+            font-weight: 900;
+            font-size: 1.2rem;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5);
+            z-index: 1200;
+            animation: new-badge-pop 0.5s ease-out;
+            border: 3px solid white;
         }
 
         .grid-container {
@@ -257,12 +291,32 @@
     </div>
 
     <script>
-        const LEGENDARY_LIST = ["ミュウツー", "ミュウ", "ルギア", "ホウオウ", "レックウザ", "ジラーチ", "アルセウス", "ミライドン", "コライドン", "ダークライ"];
+        const LEGENDARY_LIST = ["ミュウツー", "ミュウ", "ルギア", "ホウオウ", "ジラーチ", "ダークライ", "フーパ", "ザシアン", "ザマゼンタ"];
         const ADDED_LIST = [
             "ピカチュウ", "イーブイ", "ルカリオ", "ロコン", "ニャオハ", "ポッチャマ", "プリン", "ゲンガー", "メタモン", "コダック", 
             "カビゴン", "カイリュー", "トゲピー", "ハッサム", "ミミッキュ", "ガブリアス", "サーナイト", "ゲッコウガ", "ホゲータ", "クワッス",
             "パモ", "ゾロア", "リザードン", "フシギダネ", "ゼニガメ", "ガーディ", "ウインディ", "ヤドン", "ラプラス", "チコリータ",
-            "アチャモ", "ミズゴロウ", "モクロー", "ニャビー", "アシマリ", "ワンパチ", "マホイップ", "ドラパルト", "ヌオー", "ドオー"
+            "アチャモ", "ミズゴロウ", "モクロー", "ニャビー", "アシマリ", "ワンパチ", "ドラパルト", "ヌオー",
+            "ピジョット", "フリーザー", "サンダー", "ファイヤー", "ラッキー", "スターミー", "ペリッパー",
+            "チョンチー", "フシギバナ", "スボミー", "ウッウ",
+            "ナットレイ", "エンペルト", "ハピナス", "モコココ", "ボーマンダ", "チルタリス", "アリアドス", "オニドリル",
+            "バイバニラ", "ナマケロ", "サボネア", "ムシャーナ", "テッカグヤ", "マーイーカ", "フラベベ",
+            "エレザード", "ネッコアラ", "クイタラン", "オンバーン", "パンプジン",
+            "ベベノム", "トゲデマル", "ミミロップ", "アマージョ", "モスノウ", "ハリマロン", "エリキテル",
+            "タツベイ", "アブリボン", "ウリムー", "パウワウ", "ニドキング", "ゴーレム", "テラキオン", "コバルオン", "ビリジオン", "ケルディオ",
+            "メロエッタ", "ゲノセクト", "ウーラオス",
+            "ニャース", "デデンネ", "ヤミラミ", "ソーナンス", "ムーランド", "コリンク", "ギャラドス", "メタグロス", "レントラー",
+            "ミロカロス", "フカマル", "グレイシア", "リーフィア", "ブラッキー", "エーフィ", "シャワーズ", "サンダース", "ブースター",
+            "ニンフィア", "デンリュウ", "ストライク", "ラグラージ", "バシャーモ", "ジュカイン", "エンブオー", "ダイケンキ",
+            "パチリス", "ムックル", "ラルトス", "キルリア", "マッスグマ", "ジグザグマ", "コノハナ", "ダーテング",
+            "キノガッサ", "ネンドール", "ドンファン", "ブーピッグ", "バネブー", "ルンパッパ", "ハスボー", "スバメ", "オオスバメ",
+            "ペラップ", "ドンカラス", "ムクホーク", "ムクバード", "グライオン", "マニューラ", "ユキメノコ", "ルナトーン", "ソルロック",
+            "チャーレム", "ノズパス", "ダイノーズ", "ビークイン", "ミツハニー", "ドクロッグ", "グレッグル", "トリトドン", "カラナクシ",
+            "ドータクン", "ドーミラー", "ネイティオ", "ネイティ", "ユンゲラー", "フーディン", "ケーシィ", "ベトベター", "ベトベトン",
+            "ドガース", "マタドガス", "ガラガラ", "カラカラ", "サイドン", "サイホーン", "ニョロボン", "ニョロゾ", "ニョロモ",
+            "ワタッコ", "ポポッコ", "ハネッコ", "キマワリ", "ヒマナッツ", "ウソッキー", "ウソハチ", "ソーナノ", "マリル", "マリルリ",
+            "グランブル", "ブルー", "エアームド", "ニューラ", "デリバード", "マンタイン", "タマンタ", "テッポウオ", "オクタン",
+            "ハラバリー", "ジガルデ", "アシレーヌ", "ウールー", "スピアー", "オーガポン"
         ];
         // 重複削除と5文字以内フィルタ
         const POKEMON_LIST = Array.from(new Set([...LEGENDARY_LIST, ...ADDED_LIST])).filter(p => p.length <= 5);
@@ -370,24 +424,49 @@
                 }
                 document.getElementById('current-word-display').innerText = state.selectedIndices.map(i => state.board[i]).join('') || '???';
             },
-            showToast(w, isLegend) {
+            showToast(w, isLegend, isNew) {
                 const t = document.getElementById('toast');
                 const box = document.getElementById('toast-box');
                 const sub = document.getElementById('toast-sub');
                 document.getElementById('toast-word').innerText = w;
                 if (isLegend) {
                     box.style.borderColor = 'var(--gold)';
-                    sub.innerText = 'LEGENDARY!! +5s';
+                    sub.innerText = isNew ? '✨NEW LEGENDARY!! +5s' : 'LEGENDARY!! +5s';
                     sub.style.color = '#854d0e';
                     this.createConfetti();
                 } else {
-                    box.style.borderColor = 'var(--primary)';
-                    sub.innerText = 'GET! +2s';
-                    sub.style.color = 'var(--danger)';
+                    box.style.borderColor = isNew ? '#f59e0b' : 'var(--primary)';
+                    sub.innerText = isNew ? '✨NEW! +2s' : 'GET! +2s';
+                    sub.style.color = isNew ? '#f59e0b' : 'var(--danger)';
                 }
                 t.style.opacity = '1';
                 box.style.transform = 'scale(1)';
                 setTimeout(() => { t.style.opacity = '0'; box.style.transform = 'scale(0.5)'; }, 1500);
+            },
+            showNewPokemonEffect() {
+                // キラキラエフェクト
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => {
+                        const sparkle = document.createElement('div');
+                        sparkle.className = 'sparkle';
+                        sparkle.innerText = '✨';
+                        sparkle.style.left = (30 + Math.random() * 40) + '%';
+                        sparkle.style.top = (30 + Math.random() * 40) + '%';
+                        sparkle.style.fontSize = (20 + Math.random() * 20) + 'px';
+                        document.body.appendChild(sparkle);
+                        setTimeout(() => sparkle.remove(), 800);
+                    }, i * 100);
+                }
+                
+                // NEW!バッジ
+                const badge = document.createElement('div');
+                badge.className = 'new-badge';
+                badge.innerText = '🎉 NEW!';
+                badge.style.left = '50%';
+                badge.style.top = '20%';
+                badge.style.transform = 'translateX(-50%)';
+                document.body.appendChild(badge);
+                setTimeout(() => badge.remove(), 1500);
             },
             createConfetti() {
                 for (let i = 0; i < 30; i++) {
@@ -437,9 +516,19 @@
             nextStage() {
                 this.clearHintTimers();
                 state.board = Array(25).fill(null);
+                
+                // 未収集ポケモンを優先的に選択
                 const isLegendWave = Math.random() < 0.2; 
-                const list = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
-                const w = list[Math.floor(Math.random() * list.length)];
+                const baseList = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
+                const uncollected = baseList.filter(p => !state.pokedex.has(p));
+                
+                // 未収集が存在する場合は80%の確率で未収集から選択
+                let w;
+                if (uncollected.length > 0 && Math.random() < 0.8) {
+                    w = uncollected[Math.floor(Math.random() * uncollected.length)];
+                } else {
+                    w = baseList[Math.floor(Math.random() * baseList.length)];
+                }
                 
                 const ds = [[1, 0], [0, 1]];
                 let placed = false;
@@ -477,6 +566,7 @@
                 if (word === state.targetWord) {
                     this.clearHintTimers();
                     const isLegend = LEGENDARY_LIST.includes(word);
+                    const isNew = !state.pokedex.has(word);
                     AudioEngine.playSuccess(isLegend);
                     state.score += isLegend ? 500 : 100;
                     state.timeLeft = Math.min(60, state.timeLeft + (isLegend ? 5 : 2));
@@ -486,7 +576,8 @@
                         c.classList.add('matched');
                         if (isLegend) c.classList.add('legend-matched');
                     });
-                    UI.showToast(word, isLegend);
+                    if (isNew) UI.showNewPokemonEffect();
+                    UI.showToast(word, isLegend, isNew);
                     UI.updateHUD();
                     setTimeout(() => { if (state.isRunning) this.nextStage(); }, 1000);
                 }
