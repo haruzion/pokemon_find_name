@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ポケなぞ！ - 安定版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-main: #fffbeb;
+            --primary: #38bdf8;
+            --success: #4ade80;
+            --danger: #fb7185;
+            --accent: #fbbf24;
+            --gold: #fde047;
+        }
+
+        body {
+            touch-action: none;
+            background-color: var(--bg-main);
+            font-family: 'Comic Sans MS', 'Hiragino Maru Gothic ProN', 'Rounded Mplus 1c', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @keyframes bounce-pop {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes hint-pulse {
+            0%, 100% { background-color: #ffffff; }
+            50% { background-color: #ffedd5; transform: scale(1.05); }
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            z-index: 1000;
+            border-radius: 2px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: 100%;
+            max-width: 380px;
+            aspect-ratio: 1 / 1;
+            background-color: #fbbf24;
+            padding: 12px;
+            border-radius: 35px;
+            border: 8px solid #f59e0b;
+            position: relative;
+            box-shadow: 0 12px 0 #d97706;
+        }
+
+        .cell {
+            background-color: #ffffff;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 4px 0 #e2e8f0;
+        }
+
+        .cell.selected {
+            background-color: var(--primary);
+            color: #ffffff;
+            transform: scale(0.92);
+            box-shadow: 0 1px 0 #0284c7;
+        }
+
+        .cell.matched {
+            background-color: var(--success);
+            color: white;
+            z-index: 20;
+            animation: bounce-pop 0.4s ease-out;
+        }
+
+        .cell.legend-matched {
+            background-color: var(--gold) !important;
+            color: #854d0e !important;
+            box-shadow: 0 0 25px rgba(253, 224, 71, 0.8) !important;
+        }
+
+        .cell.fade-out {
+            opacity: 0.15;
+            transform: scale(0.85);
+            pointer-events: none;
+        }
+
+        .cell.hint-highlight-first {
+            animation: hint-pulse 1s infinite;
+            color: #f97316;
+            z-index: 5;
+        }
+
+        .cell.hint-highlight-all {
+            border: 4px dashed #f59e0b;
+        }
+
+        .selection-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+            stroke: var(--primary);
+            stroke-width: 18;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: 0.5;
+        }
+
+        .screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background-color: var(--bg-main);
+            padding: 20px;
+        }
+
+        .active-screen {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .bubble-btn {
+            background: white;
+            border: 4px solid #38bdf8;
+            border-radius: 999px;
+            box-shadow: 0 6px 0 #0284c7;
+            transition: all 0.1s;
+        }
+        .bubble-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #0284c7;
+        }
+
+        .hud-stat {
+            background: white;
+            border: 4px solid #fbbf24;
+            border-radius: 999px;
+            padding: 4px 12px;
+            box-shadow: 0 4px 0 #d97706;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center min-h-screen">
+
+    <!-- HUD -->
+    <div id="game-hud" class="w-full max-w-sm px-6 pt-6 flex flex-col gap-3">
+        <div class="flex justify-between items-center">
+            <div class="flex gap-2">
+                <button id="bgm-toggle" onclick="AudioEngine.toggleMute()" class="bubble-btn w-10 h-10 flex items-center justify-center text-xl">
+                    🔊
+                </button>
+                <button onclick="UI.openPokedex()" class="bubble-btn px-4 py-2 text-sky-500 font-black text-xs">
+                    📕 ずかん
+                </button>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <div class="hud-stat flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-amber-600">SCORE</span>
+                    <span id="score-display" class="text-xl font-black text-amber-500 tabular-nums">0</span>
+                </div>
+                <div class="hud-stat flex items-center gap-2 border-sky-400 shadow-[#0284c7]">
+                    <span class="text-[10px] font-bold text-sky-600">GET</span>
+                    <span id="found-count" class="text-lg font-black text-sky-500 tabular-nums">0/0</span>
+                </div>
+            </div>
+        </div>
+        <div class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
+            <div id="timer-bar" class="h-full bg-rose-400 transition-all duration-100" style="width: 100%"></div>
+        </div>
+    </div>
+
+    <!-- MAIN GAME -->
+    <main class="flex-1 flex flex-col items-center justify-center w-full max-w-sm px-4">
+        <div class="relative w-full">
+            <div id="pause-overlay" class="hidden absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex items-center justify-center rounded-[40px]">
+                 <div class="text-6xl font-black text-amber-500 italic">READY?</div>
+            </div>
+            <div id="grid" class="grid-container mx-auto"></div>
+            <svg id="line-svg" class="absolute inset-0 pointer-events-none w-full h-full z-20"></svg>
+        </div>
+        <div class="mt-6 w-full flex justify-center">
+            <div id="current-word-display" class="text-3xl font-black text-sky-400 bg-white border-4 border-sky-100 px-10 py-3 rounded-3xl shadow-lg min-w-[220px] text-center italic">???</div>
+        </div>
+    </main>
+
+    <!-- SCREENS -->
+    <div id="start-overlay" class="screen active-screen">
+        <div class="text-center animate-bounce">
+            <div class="text-7xl mb-4">✨</div>
+            <h1 class="text-5xl font-black text-amber-500 italic mb-2">POKÉ NAZO</h1>
+            <p class="text-amber-400 font-bold mb-10">でんせつの ポケモンを あつめよう！</p>
+        </div>
+        <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
+            スタート！
+        </button>
+    </div>
+
+    <div id="result-screen" class="screen">
+        <h2 class="text-4xl font-black text-amber-500 mb-6 italic">TIME UP!</h2>
+        <div class="bg-white rounded-[3rem] p-8 mb-8 border-8 border-amber-100 shadow-xl w-full max-w-xs text-center flex flex-col gap-4">
+            <div>
+                <div class="text-xs font-bold text-slate-300 uppercase">SCORE</div>
+                <div id="final-score" class="text-5xl font-black text-sky-500">0</div>
+            </div>
+            <div class="border-t border-slate-100 pt-4">
+                <div class="text-xs font-bold text-slate-300 uppercase">GET</div>
+                <div id="final-pokedex" class="text-2xl font-black text-amber-500">0 / 0</div>
+            </div>
+        </div>
+        <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-xl font-black py-5 rounded-3xl shadow-[0_8px_0_#0284c7] mb-4">もういっかい！</button>
+        <button onclick="UI.openPokedex()" class="text-sky-400 font-bold">ずかんを みる</button>
+    </div>
+
+    <div id="pokedex-screen" class="screen">
+        <div class="w-full max-w-md flex flex-col h-full p-4">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-black text-amber-500 italic">POKÉDEX</h2>
+                    <p id="pokedex-progress" class="text-[10px] font-bold text-amber-400"></p>
+                </div>
+                <button onclick="UI.closePokedex()" class="bg-white border-2 border-slate-200 px-6 py-2 rounded-full text-slate-400 font-bold text-sm">とじる</button>
+            </div>
+            <div id="pokedex-list" class="grid grid-cols-3 gap-3 overflow-y-auto pb-10 flex-1 px-1"></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-all duration-300 z-[600]">
+        <div id="toast-box" class="bg-white border-[12px] border-sky-300 px-12 py-10 rounded-[4rem] shadow-2xl text-center transform scale-50">
+            <div id="toast-word" class="text-sky-500 font-black text-5xl mb-2 italic"></div>
+            <div id="toast-sub" class="text-rose-400 font-black text-sm uppercase">GREAT!</div>
+        </div>
+    </div>
+
+    <script>
+        const LEGENDARY_LIST = ["ミュウツー", "ミュウ", "ルギア", "ホウオウ", "レックウザ", "ジラーチ", "アルセウス", "ミライドン", "コライドン", "ダークライ"];
+        const ADDED_LIST = [
+            "ピカチュウ", "イーブイ", "ルカリオ", "ロコン", "ニャオハ", "ポッチャマ", "プリン", "ゲンガー", "メタモン", "コダック", 
+            "カビゴン", "カイリュー", "トゲピー", "ハッサム", "ミミッキュ", "ガブリアス", "サーナイト", "ゲッコウガ", "ホゲータ", "クワッス",
+            "パモ", "ゾロア", "リザードン", "フシギダネ", "ゼニガメ", "ガーディ", "ウインディ", "ヤドン", "ラプラス", "チコリータ",
+            "アチャモ", "ミズゴロウ", "モクロー", "ニャビー", "アシマリ", "ワンパチ", "マホイップ", "ドラパルト", "ヌオー", "ドオー"
+        ];
+        // 重複削除と5文字以内フィルタ
+        const POKEMON_LIST = Array.from(new Set([...LEGENDARY_LIST, ...ADDED_LIST])).filter(p => p.length <= 5);
+        const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
+
+        const AudioEngine = {
+            ctx: null,
+            masterGain: null,
+            isMuted: false,
+            bgmInterval: null,
+            init() {
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.connect(this.ctx.destination);
+                this.updateBGM('title');
+            },
+            toggleMute() {
+                this.isMuted = !this.isMuted;
+                this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 1, this.ctx.currentTime);
+                document.getElementById('bgm-toggle').innerText = this.isMuted ? '🔇' : '🔊';
+            },
+            playTone(freq, type, dur, vol = 0.1) {
+                if (!this.ctx) return;
+                const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+                o.type = type;
+                o.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                g.gain.setValueAtTime(0, this.ctx.currentTime);
+                g.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.05);
+                g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+                o.connect(g); g.connect(this.masterGain);
+                o.start(); o.stop(this.ctx.currentTime + dur);
+            },
+            playSuccess(isLegend) {
+                const base = isLegend ? 880 : 523.25;
+                const type = isLegend ? 'square' : 'triangle';
+                this.playTone(base, type, 0.4);
+                this.playTone(base * 1.25, type, 0.4, 0.08);
+                this.playTone(base * 1.5, type, 0.5, 0.06);
+            },
+            updateBGM(mode) {
+                if (this.bgmInterval) clearInterval(this.bgmInterval);
+                let step = 0;
+                const notes = mode === 'game' ? [261.63, 293.66, 329.63, 349.23] : [196.00, 220.00];
+                this.bgmInterval = setInterval(() => {
+                    if (this.isMuted || !this.ctx) return;
+                    this.playTone(notes[step % notes.length], 'sine', 0.5, 0.02);
+                    step++;
+                }, mode === 'game' ? 400 : 800);
+            }
+        };
+
+        const state = {
+            isRunning: false,
+            score: 0,
+            timeLeft: 60,
+            pokedex: new Set(),
+            board: [],
+            selectedIndices: [],
+            isSelecting: false,
+            targetWord: null,
+            targetIndices: [],
+            hintTimers: [],
+            mainTimer: null
+        };
+
+        const UI = {
+            switchScreen(id) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
+                if (id) document.getElementById(id).classList.add('active-screen');
+            },
+            updateHUD() {
+                document.getElementById('score-display').innerText = state.score;
+                document.getElementById('found-count').innerText = `${state.pokedex.size}/${POKEMON_LIST.length}`;
+                document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / 60 * 100)) + "%";
+            },
+            renderBoard() {
+                const grid = document.getElementById('grid');
+                grid.innerHTML = '';
+                state.board.forEach((char, i) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.innerText = char;
+                    cell.dataset.index = i;
+                    grid.appendChild(cell);
+                });
+            },
+            updateSelectionUI() {
+                const grid = document.getElementById('grid');
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach((c, i) => c.classList.toggle('selected', state.selectedIndices.includes(i)));
+                const lineSvg = document.getElementById('line-svg');
+                lineSvg.innerHTML = '';
+                if (state.selectedIndices.length > 1) {
+                    const rect = grid.getBoundingClientRect();
+                    const pts = state.selectedIndices.map(idx => {
+                        const cellRect = cells[idx].getBoundingClientRect();
+                        return `${cellRect.left - rect.left + cellRect.width / 2},${cellRect.top - rect.top + cellRect.height / 2}`;
+                    });
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    line.setAttribute('points', pts.join(' '));
+                    line.setAttribute('class', 'selection-line');
+                    line.setAttribute('fill', 'none');
+                    lineSvg.appendChild(line);
+                }
+                document.getElementById('current-word-display').innerText = state.selectedIndices.map(i => state.board[i]).join('') || '???';
+            },
+            showToast(w, isLegend) {
+                const t = document.getElementById('toast');
+                const box = document.getElementById('toast-box');
+                const sub = document.getElementById('toast-sub');
+                document.getElementById('toast-word').innerText = w;
+                if (isLegend) {
+                    box.style.borderColor = 'var(--gold)';
+                    sub.innerText = 'LEGENDARY!! +5s';
+                    sub.style.color = '#854d0e';
+                    this.createConfetti();
+                } else {
+                    box.style.borderColor = 'var(--primary)';
+                    sub.innerText = 'GET! +2s';
+                    sub.style.color = 'var(--danger)';
+                }
+                t.style.opacity = '1';
+                box.style.transform = 'scale(1)';
+                setTimeout(() => { t.style.opacity = '0'; box.style.transform = 'scale(0.5)'; }, 1500);
+            },
+            createConfetti() {
+                for (let i = 0; i < 30; i++) {
+                    const c = document.createElement('div');
+                    c.className = 'confetti';
+                    c.style.left = Math.random() * 100 + 'vw';
+                    c.style.backgroundColor = `hsl(${Math.random() * 50 + 20}, 100%, 60%)`;
+                    c.style.animation = `confetti-fall ${1.5 + Math.random()}s linear forwards`;
+                    document.body.appendChild(c);
+                    setTimeout(() => c.remove(), 2000);
+                }
+            },
+            openPokedex() {
+                const list = document.getElementById('pokedex-list');
+                list.innerHTML = '';
+                POKEMON_LIST.forEach(n => {
+                    const isFound = state.pokedex.has(n);
+                    const isLegend = LEGENDARY_LIST.includes(n);
+                    const div = document.createElement('div');
+                    div.className = `p-2 rounded-2xl text-center font-black text-[10px] min-h-[50px] flex items-center justify-center border-2 ${isFound ? (isLegend ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-sky-50 border-sky-200 text-sky-500') : 'bg-white border-slate-50 text-slate-200'}`;
+                    div.innerText = isFound ? (isLegend ? '🌟' + n : n) : '？';
+                    list.appendChild(div);
+                });
+                document.getElementById('pokedex-progress').innerText = `${state.pokedex.size} / ${POKEMON_LIST.length}`;
+                this.switchScreen('pokedex-screen');
+            },
+            closePokedex() { this.switchScreen(state.isRunning ? null : 'result-screen'); }
+        };
+
+        const Game = {
+            init() {
+                AudioEngine.init();
+                AudioEngine.updateBGM('game');
+                state.isRunning = true;
+                state.score = 0;
+                state.timeLeft = 60;
+                UI.switchScreen(null);
+                this.nextStage();
+                if (state.mainTimer) clearInterval(state.mainTimer);
+                state.mainTimer = setInterval(() => {
+                    if (!state.isRunning) return;
+                    state.timeLeft -= 0.1;
+                    if (state.timeLeft <= 0) this.end();
+                    UI.updateHUD();
+                }, 100);
+            },
+            nextStage() {
+                this.clearHintTimers();
+                state.board = Array(25).fill(null);
+                const isLegendWave = Math.random() < 0.2; 
+                const list = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
+                const w = list[Math.floor(Math.random() * list.length)];
+                
+                const ds = [[1, 0], [0, 1]];
+                let placed = false;
+                for (let attempt = 0; attempt < 100; attempt++) {
+                    const d = ds[Math.floor(Math.random() * 2)];
+                    const x = Math.floor(Math.random() * (5 - d[0] * (w.length - 1)));
+                    const y = Math.floor(Math.random() * (5 - d[1] * (w.length - 1)));
+                    let tempIndices = [];
+                    for (let i = 0; i < w.length; i++) tempIndices.push((y + d[1] * i) * 5 + (x + d[0] * i));
+                    tempIndices.forEach((idx, i) => state.board[idx] = w[i]);
+                    state.targetIndices = tempIndices;
+                    placed = true;
+                    break;
+                }
+                if (!placed) return this.nextStage();
+                for (let i = 0; i < 25; i++) if (!state.board[i]) state.board[i] = CHARS[Math.floor(Math.random() * CHARS.length)];
+                state.targetWord = w;
+                UI.renderBoard();
+                UI.updateSelectionUI();
+                this.startHintTimers();
+            },
+            startHintTimers() {
+                const cells = () => document.querySelectorAll('.cell');
+                const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
+                state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), 5000));
+                state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), 10000));
+                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), 15000));
+            },
+            clearHintTimers() {
+                state.hintTimers.forEach(clearTimeout);
+                state.hintTimers = [];
+            },
+            checkAnswer() {
+                const word = state.selectedIndices.map(i => state.board[i]).join('');
+                if (word === state.targetWord) {
+                    this.clearHintTimers();
+                    const isLegend = LEGENDARY_LIST.includes(word);
+                    AudioEngine.playSuccess(isLegend);
+                    state.score += isLegend ? 500 : 100;
+                    state.timeLeft = Math.min(60, state.timeLeft + (isLegend ? 5 : 2));
+                    state.pokedex.add(word);
+                    state.selectedIndices.forEach(idx => {
+                        const c = document.querySelectorAll('.cell')[idx];
+                        c.classList.add('matched');
+                        if (isLegend) c.classList.add('legend-matched');
+                    });
+                    UI.showToast(word, isLegend);
+                    UI.updateHUD();
+                    setTimeout(() => { if (state.isRunning) this.nextStage(); }, 1000);
+                }
+            },
+            end() {
+                state.isRunning = false;
+                this.clearHintTimers();
+                clearInterval(state.mainTimer);
+                AudioEngine.updateBGM('result');
+                document.getElementById('final-score').innerText = state.score;
+                document.getElementById('final-pokedex').innerText = `${state.pokedex.size} / ${POKEMON_LIST.length}`;
+                UI.switchScreen('result-screen');
+            }
+        };
+
+        function setupEvents() {
+            const grid = document.getElementById('grid');
+            const getIdx = (e) => {
+                const p = e.touches ? e.touches[0] : e;
+                const el = document.elementFromPoint(p.clientX, p.clientY);
+                if (el && el.classList.contains('cell')) return parseInt(el.dataset.index);
+                return null;
+            };
+            const onStart = (e) => {
+                if (!state.isRunning) return;
+                AudioEngine.init();
+                const i = getIdx(e);
+                if (i !== null) {
+                    state.isSelecting = true;
+                    state.selectedIndices = [i];
+                    UI.updateSelectionUI();
+                }
+            };
+            const onMove = (e) => {
+                if (!state.isSelecting) return;
+                const i = getIdx(e);
+                if (i !== null && i !== state.selectedIndices[state.selectedIndices.length - 1]) {
+                    const last = state.selectedIndices[state.selectedIndices.length - 1];
+                    const dx = Math.abs(i % 5 - last % 5), dy = Math.abs(Math.floor(i / 5) - Math.floor(last / 5));
+                    if (dx + dy === 1) {
+                        if (!state.selectedIndices.includes(i)) {
+                            state.selectedIndices.push(i);
+                            UI.updateSelectionUI();
+                        } else if (i === state.selectedIndices[state.selectedIndices.length - 2]) {
+                            state.selectedIndices.pop();
+                            UI.updateSelectionUI();
+                        }
+                    }
+                }
+            };
+            const onEnd = () => {
+                if (state.isSelecting) {
+                    Game.checkAnswer();
+                    state.isSelecting = false;
+                    state.selectedIndices = [];
+                    UI.updateSelectionUI();
+                }
+            };
+            grid.addEventListener('mousedown', onStart);
+            grid.addEventListener('touchstart', (e) => { e.preventDefault(); onStart(e); }, { passive: false });
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', (e) => { if(state.isSelecting) e.preventDefault(); onMove(e); }, { passive: false });
+            window.addEventListener('mouseup', onEnd);
+            window.addEventListener('touchend', onEnd);
+        }
+
+        window.onload = setupEvents;
+    </script>
+</body>
+</html>
