@@ -147,5 +147,46 @@ check('旧セーブのベストはふつうのベストへ移行',
   migTest.bestNormal === 250 && migTest.mode === 'normal' && migTest.dex === 'ミュウ',
   JSON.stringify(migTest));
 
+// ===== 地方データ（Phase 2） =====
+const regions = get('PokemonData.REGIONS');
+const regionOrder = get('REGION_ORDER');
+const regionOf = get('REGION_OF');
+const allRegionNames = regionOrder.flatMap(r => regions[r] || []);
+check('地方は10グループ', regionOrder.length === 10, regionOrder.join(','));
+check('地方の合計が全収録数と一致', allRegionNames.length === list.length,
+  `regions=${allRegionNames.length} list=${list.length}`);
+check('地方に重複なし・漏れなし',
+  new Set(allRegionNames).size === allRegionNames.length &&
+  list.every(n => allRegionNames.includes(n)));
+const expectedCounts = { 'カントー': 118, 'ジョウト': 80, 'ホウエン': 120, 'シンオウ': 97, 'イッシュ': 152, 'カロス': 66, 'アローラ': 71, 'ガラル': 53, 'パルデア': 35, 'そのほか': 3 };
+check('地方別の件数', regionOrder.every(r => (regions[r] || []).length === expectedCounts[r]),
+  regionOrder.map(r => `${r}:${(regions[r] || []).length}`).join(' '));
+check('カプ系はアローラ', ['カプコケコ', 'カプテテフ', 'カプブルル', 'カプレヒレ'].every(n => regionOf[n] === 'アローラ'));
+check('そのほかは由来不明の3匹だけ',
+  JSON.stringify(regions['そのほか']) === JSON.stringify(['モコココ', 'パイン', 'ドランチ']),
+  (regions['そのほか'] || []).join(','));
+check('REGION_OFが全件をカバー', list.every(n => regionOf[n]));
+
+// ===== バッジ（Phase 2） =====
+const badges = get('BADGES');
+check('バッジ定義10種', badges.length === 10 && new Set(badges.map(b => b.id)).size === 10,
+  badges.map(b => b.id).join(','));
+check('バッジに判定関数がある', badges.every(b => typeof b.test === 'function' && b.name && b.desc));
+const badgeFlow = get(`(() => {
+  SaveData.data = { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0 };
+  state.pokedex = new Set(POKEMON_LIST.slice(0, 10)); // 先頭10匹は全て伝説
+  const first = SaveData.awardBadges().map(b => b.id);
+  SaveData.addPlay();
+  const second = SaveData.awardBadges().map(b => b.id);
+  const third = SaveData.awardBadges().map(b => b.id);
+  return { first, second, third, plays: SaveData.data.plays };
+})()`);
+check('バッジ獲得フロー（伝説10匹→3種、初プレイ→1種、再判定→0種）',
+  badgeFlow.first.includes('dex-10') && badgeFlow.first.includes('first-legend') &&
+  badgeFlow.first.includes('legend-10') && badgeFlow.first.length === 3 &&
+  JSON.stringify(badgeFlow.second) === JSON.stringify(['first-play']) &&
+  badgeFlow.third.length === 0 && badgeFlow.plays === 1,
+  JSON.stringify(badgeFlow));
+
 console.log(failures ? `\n${failures}件 失敗` : '\n全て合格');
 process.exit(failures ? 1 : 0);
