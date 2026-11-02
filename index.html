@@ -208,6 +208,12 @@
             100% { transform: scale(1); }
         }
         .new-pop { animation: newPop 0.45s ease; box-shadow: 0 0 24px rgba(245, 158, 11, 0.55); }
+        .scope-chip {
+            padding: 6px 12px; border-radius: 999px;
+            border: 2px solid #fde68a; background: white;
+            color: #d97706; font-weight: 900; font-size: 11px; cursor: pointer;
+        }
+        .scope-chip.active { background: #f59e0b; color: white; border-color: #d97706; }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
@@ -254,6 +260,7 @@
         <div class="mt-6 w-full flex justify-center">
             <div id="current-word-display" class="text-3xl font-black text-sky-400 bg-white border-4 border-sky-100 px-10 py-3 rounded-3xl shadow-lg min-w-[220px] text-center italic">???</div>
         </div>
+        <div id="scope-hint" class="text-center text-xs font-black text-slate-400 mt-2 h-4"></div>
     </main>
 
     <!-- SCREENS -->
@@ -277,7 +284,21 @@
             <button type="button" data-mode="hard" class="mode-chip" onclick="selectMode('hard')">むずかしい</button>
             <button type="button" data-mode="relax" class="mode-chip" onclick="selectMode('relax')">のんびり</button>
         </div>
-        <p id="mode-desc" class="text-slate-400 font-bold text-xs mb-6"></p>
+        <p id="mode-desc" class="text-slate-400 font-bold text-xs mb-5"></p>
+        <p class="text-slate-400 font-black text-xs mb-2">しゅつだいテーマ</p>
+        <div class="flex flex-wrap gap-1.5 mb-6 w-full max-w-xs justify-center" id="scope-select">
+            <button type="button" data-scope="all" class="scope-chip" onclick="selectScope('all')">ぜんぶ</button>
+            <button type="button" data-scope="legend" class="scope-chip" onclick="selectScope('legend')">でんせつ</button>
+            <button type="button" data-scope="カントー" class="scope-chip" onclick="selectScope('カントー')">カントー</button>
+            <button type="button" data-scope="ジョウト" class="scope-chip" onclick="selectScope('ジョウト')">ジョウト</button>
+            <button type="button" data-scope="ホウエン" class="scope-chip" onclick="selectScope('ホウエン')">ホウエン</button>
+            <button type="button" data-scope="シンオウ" class="scope-chip" onclick="selectScope('シンオウ')">シンオウ</button>
+            <button type="button" data-scope="イッシュ" class="scope-chip" onclick="selectScope('イッシュ')">イッシュ</button>
+            <button type="button" data-scope="カロス" class="scope-chip" onclick="selectScope('カロス')">カロス</button>
+            <button type="button" data-scope="アローラ" class="scope-chip" onclick="selectScope('アローラ')">アローラ</button>
+            <button type="button" data-scope="ガラル" class="scope-chip" onclick="selectScope('ガラル')">ガラル</button>
+            <button type="button" data-scope="パルデア" class="scope-chip" onclick="selectScope('パルデア')">パルデア</button>
+        </div>
         <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
             スタート！
         </button>
@@ -572,6 +593,21 @@
             relax:  { label: 'のんびり',   timeLimit: Infinity, bonus: 0, legendBonus: 0, hintDelays: [3000, 6000, 10000],  scoreMul: 1, desc: 'じかんせいげんなし・おわるボタンで しゅうりょう' }
         };
 
+        // ===== 出題テーマ（scope） =====
+        function scopePool(scope) {
+            if (scope === 'legend') return LEGENDARY_LIST;
+            if (scope && scope !== 'all' && PokemonData.REGIONS[scope]) return PokemonData.REGIONS[scope];
+            return null; // ぜんぶ = 従来プール（伝説ウェーブ＋全種）
+        }
+
+        function pickTarget(pool, random) {
+            const uncollected = pool.filter(p => !state.pokedex.has(p));
+            if (uncollected.length > 0 && random() < 0.8) {
+                return uncollected[Math.floor(random() * uncollected.length)];
+            }
+            return pool[Math.floor(random() * pool.length)];
+        }
+
         // ===== 実績バッジ（Phase 2） =====
         const BADGES = [
             { id: 'first-play', icon: '👣', name: 'はじめのいっぽ', desc: 'はじめて あそびきった', test: s => s.plays >= 1 },
@@ -635,7 +671,7 @@
         // ===== 保存（ずかん・ベストスコア・音設定を端末に残す） =====
         const SaveData = {
             KEY: 'pokenazo-save-v1',
-            data: { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0 },
+            data: { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0, scope: 'all' },
             load() {
                 try {
                     const raw = localStorage.getItem(this.KEY);
@@ -649,6 +685,7 @@
                 AudioEngine.isMuted = !!this.data.muted;
                 state.mode = MODES[this.data.mode] ? this.data.mode : 'normal';
                 state.settings = MODES[state.mode];
+                state.scope = (this.data.scope === 'all' || this.data.scope === 'legend' || PokemonData.REGIONS[this.data.scope]) ? this.data.scope : 'all';
                 this.awardBadges();
             },
             save() {
@@ -673,6 +710,10 @@
             },
             saveMode(m) {
                 this.data.mode = m;
+                this.save();
+            },
+            saveScope(s) {
+                this.data.scope = s;
                 this.save();
             },
             addPlay() {
@@ -704,6 +745,7 @@
             state.settings = MODES[m];
             if (Deps.storage) Deps.storage.saveMode(m);
             refreshModeUI();
+            refreshScopeUI();
             updateStartProgress();
         }
 
@@ -713,6 +755,20 @@
             });
             const desc = document.getElementById('mode-desc');
             if (desc && state.settings) desc.innerText = state.settings.desc;
+        }
+
+        // テーマ選択（スタート画面のチップ）
+        function selectScope(s) {
+            if (s !== 'all' && s !== 'legend' && !PokemonData.REGIONS[s]) return;
+            state.scope = s;
+            if (Deps.storage) Deps.storage.saveScope(s);
+            refreshScopeUI();
+        }
+
+        function refreshScopeUI() {
+            document.querySelectorAll('#scope-select .scope-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.scope === state.scope);
+            });
         }
 
         function updateStartProgress() {
@@ -776,6 +832,7 @@
             score: 0,
             timeLeft: 60,
             mode: 'normal',
+            scope: 'all',
             settings: null,
             finishedOnce: false,
             quitEarly: false,
@@ -986,18 +1043,18 @@
             nextStage() {
                 this.clearHintTimers();
 
-                // 未収集ポケモンを優先的に選択
-                const isLegendWave = Deps.random() < 0.2;
-                const baseList = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
-                const uncollected = baseList.filter(p => !state.pokedex.has(p));
-
-                // 未収集が存在する場合は80%の確率で未収集から選択
+                // 出題テーマでプールを切り替え、未収集を優先的に選択
+                const pool = scopePool(state.scope);
                 let w;
-                if (uncollected.length > 0 && Deps.random() < 0.8) {
-                    w = uncollected[Math.floor(Deps.random() * uncollected.length)];
+                if (pool) {
+                    w = pickTarget(pool, Deps.random);
                 } else {
-                    w = baseList[Math.floor(Deps.random() * baseList.length)];
+                    const isLegendWave = Deps.random() < 0.2;
+                    const baseList = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
+                    w = pickTarget(baseList, Deps.random);
                 }
+                const hintEl = document.getElementById('scope-hint');
+                if (hintEl) hintEl.innerText = (state.scope && PokemonData.REGIONS[state.scope]) ? state.scope + 'だけ モード' : '';
 
                 const generated = BoardFactory.generate(w, 5, CHARS, Deps.random);
                 state.board = generated.board;
@@ -1011,6 +1068,12 @@
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
                 const delays = (state.settings && state.settings.hintDelays) || [5000, 10000, 15000];
+                if (!state.scope || state.scope === 'all' || state.scope === 'legend') {
+                    state.hintTimers.push(setTimeout(() => {
+                        const el = document.getElementById('scope-hint');
+                        if (el && state.targetWord) el.innerText = (REGION_OF[state.targetWord] || 'どこか') + 'の ポケモンが かくれている！';
+                    }, delays[0]));
+                }
                 state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), delays[0]));
                 state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), delays[1]));
                 state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), delays[2]));
@@ -1056,6 +1119,7 @@
                 document.getElementById('quit-btn').style.display = 'none';
                 document.getElementById('timer-wrap').style.display = '';
                 refreshModeUI();
+                refreshScopeUI();
                 updateStartProgress();
                 UI.switchScreen('start-overlay');
             },
@@ -1156,6 +1220,7 @@
             SaveData.load();
             document.getElementById('bgm-toggle').innerText = AudioEngine.isMuted ? '🔇' : '🔊';
             refreshModeUI();
+            refreshScopeUI();
             updateStartProgress();
             UI.updateHUD();
             setupEvents();
