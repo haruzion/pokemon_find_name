@@ -196,6 +196,12 @@
             padding: 4px 12px;
             box-shadow: 0 4px 0 #d97706;
         }
+        .mode-chip {
+            flex: 1; padding: 10px 0; border-radius: 999px;
+            border: 3px solid #bae6fd; background: white;
+            color: #0284c7; font-weight: 900; font-size: 13px; cursor: pointer;
+        }
+        .mode-chip.active { background: #38bdf8; color: white; border-color: #0284c7; }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
@@ -210,6 +216,9 @@
                 <button onclick="UI.openPokedex()" class="bubble-btn px-4 py-2 text-sky-500 font-black text-xs">
                     📕 ずかん
                 </button>
+                <button id="quit-btn" onclick="Game.end()" class="bubble-btn px-4 py-2 text-rose-500 font-black text-xs" style="display:none">
+                    ⏹ おわる
+                </button>
             </div>
             <div class="flex flex-col items-end gap-1">
                 <div class="hud-stat flex items-center gap-2">
@@ -222,7 +231,7 @@
                 </div>
             </div>
         </div>
-        <div class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
+        <div id="timer-wrap" class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
             <div id="timer-bar" class="h-full bg-rose-400 transition-all duration-100" style="width: 100%"></div>
         </div>
     </div>
@@ -255,14 +264,21 @@
             ・まちがえても OK！ つぎを さがそう<br>
             ・ずかんは この たんまつに ほぞんされるよ
         </div>
-        <p id="start-progress" class="text-sky-500 font-black mb-6 text-sm"></p>
+        <p id="start-progress" class="text-sky-500 font-black mb-4 text-sm"></p>
+        <div class="flex gap-2 mb-2 w-full max-w-xs" id="mode-select">
+            <button type="button" data-mode="easy" class="mode-chip" onclick="selectMode('easy')">やさしい</button>
+            <button type="button" data-mode="normal" class="mode-chip" onclick="selectMode('normal')">ふつう</button>
+            <button type="button" data-mode="hard" class="mode-chip" onclick="selectMode('hard')">むずかしい</button>
+            <button type="button" data-mode="relax" class="mode-chip" onclick="selectMode('relax')">のんびり</button>
+        </div>
+        <p id="mode-desc" class="text-slate-400 font-bold text-xs mb-6"></p>
         <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
             スタート！
         </button>
     </div>
 
     <div id="result-screen" class="screen">
-        <h2 class="text-4xl font-black text-amber-500 mb-6 italic">TIME UP!</h2>
+        <h2 id="result-title" class="text-4xl font-black text-amber-500 mb-6 italic">TIME UP!</h2>
         <div class="bg-white rounded-[3rem] p-8 mb-8 border-8 border-amber-100 shadow-xl w-full max-w-xs text-center flex flex-col gap-4">
             <div>
                 <div class="text-xs font-bold text-slate-300 uppercase">SCORE</div>
@@ -273,7 +289,7 @@
                 <div id="final-pokedex" class="text-2xl font-black text-amber-500">0 / 0</div>
             </div>
             <div class="border-t border-slate-100 pt-4">
-                <div class="text-xs font-bold text-slate-300 uppercase">BEST</div>
+                <div id="final-best-label" class="text-xs font-bold text-slate-300 uppercase">BEST</div>
                 <div id="final-best" class="text-2xl font-black text-amber-500">0</div>
                 <div id="new-record" class="text-rose-400 font-black text-sm mt-1" style="display:none">🎉 しんきろく！</div>
             </div>
@@ -422,6 +438,14 @@
         const POKEMON_LIST = Array.from(new Set([...LEGENDARY_LIST, ...ADDED_LIST])).filter(p => p.length <= 5);
         const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
 
+        // ===== モード定義（Phase 1: 難易度とのんびりモード） =====
+        const MODES = {
+            easy:   { label: 'やさしい',   timeLimit: 90,       bonus: 3, legendBonus: 6, hintDelays: [3000, 6000, 10000],  scoreMul: 1, desc: '90びょう・ヒントはやめ・ボーナスおおめ' },
+            normal: { label: 'ふつう',     timeLimit: 60,       bonus: 2, legendBonus: 5, hintDelays: [5000, 10000, 15000], scoreMul: 1, desc: '60びょう・いつものポケなぞ' },
+            hard:   { label: 'むずかしい', timeLimit: 45,       bonus: 1, legendBonus: 3, hintDelays: [8000, 15000, 22000], scoreMul: 2, desc: '45びょう・ヒントおそめ・スコア2ばい' },
+            relax:  { label: 'のんびり',   timeLimit: Infinity, bonus: 0, legendBonus: 0, hintDelays: [3000, 6000, 10000],  scoreMul: 1, desc: 'じかんせいげんなし・おわるボタンで しゅうりょう' }
+        };
+
         // ===== 盤面生成（純粋関数: DOMや状態に触らないので単体テスト可能） =====
         const BoardFactory = {
             // targetWordを縦か横に配置し、残りをランダム文字で埋めた盤面を返す
@@ -455,36 +479,68 @@
         // ===== 保存（ずかん・ベストスコア・音設定を端末に残す） =====
         const SaveData = {
             KEY: 'pokenazo-save-v1',
-            data: { pokedex: [], best: 0, muted: false },
+            data: { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal' },
             load() {
                 try {
                     const raw = localStorage.getItem(this.KEY);
                     if (raw) this.data = Object.assign(this.data, JSON.parse(raw));
                 } catch (e) { /* 壊れた保存は無視 */ }
+                // 旧形式（best単体）からモード別ベストへ移行
+                if (this.data.best && !(this.data.bests && this.data.bests.normal)) {
+                    this.data.bests = Object.assign({}, this.data.bests, { normal: this.data.best });
+                }
                 state.pokedex = new Set((this.data.pokedex || []).filter(n => POKEMON_LIST.includes(n)));
                 AudioEngine.isMuted = !!this.data.muted;
+                state.mode = MODES[this.data.mode] ? this.data.mode : 'normal';
+                state.settings = MODES[state.mode];
             },
             save() {
                 this.data.pokedex = Array.from(state.pokedex);
                 try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) { /* 保存できなくても遊べる */ }
             },
             saveBest(score) {
-                if (score > (this.data.best || 0)) {
-                    this.data.best = score;
+                if (!this.data.bests) this.data.bests = {};
+                if (score > (this.data.bests[state.mode] || 0)) {
+                    this.data.bests[state.mode] = score;
                     this.save();
                     return true;
                 }
                 return false;
             },
+            bestFor(mode) {
+                return (this.data.bests && this.data.bests[mode]) || 0;
+            },
             saveMuted(m) {
                 this.data.muted = m;
+                this.save();
+            },
+            saveMode(m) {
+                this.data.mode = m;
                 this.save();
             }
         };
 
+        // モード選択（スタート画面のチップ）
+        function selectMode(m) {
+            if (!MODES[m]) return;
+            state.mode = m;
+            state.settings = MODES[m];
+            if (Deps.storage) Deps.storage.saveMode(m);
+            refreshModeUI();
+            updateStartProgress();
+        }
+
+        function refreshModeUI() {
+            document.querySelectorAll('#mode-select .mode-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.mode === state.mode);
+            });
+            const desc = document.getElementById('mode-desc');
+            if (desc && state.settings) desc.innerText = state.settings.desc;
+        }
+
         function updateStartProgress() {
             const el = document.getElementById('start-progress');
-            if (el) el.innerText = `ずかん ${state.pokedex.size} / ${POKEMON_LIST.length}　・　ベスト ${(SaveData.data.best || 0)}てん`;
+            if (el) el.innerText = `ずかん ${state.pokedex.size} / ${POKEMON_LIST.length}　・　ベスト（${state.settings ? state.settings.label : 'ふつう'}）${SaveData.bestFor(state.mode)}てん`;
         }
 
         const AudioEngine = {
@@ -542,6 +598,9 @@
             isRunning: false,
             score: 0,
             timeLeft: 60,
+            mode: 'normal',
+            settings: null,
+            finishedOnce: false,
             pokedex: new Set(),
             board: [],
             selectedIndices: [],
@@ -560,7 +619,8 @@
             updateHUD() {
                 document.getElementById('score-display').innerText = state.score;
                 document.getElementById('found-count').innerText = `${state.pokedex.size}/${POKEMON_LIST.length}`;
-                document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / 60 * 100)) + "%";
+                const limit = state.settings && isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 60;
+                document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / limit * 100)) + "%";
             },
             renderBoard() {
                 const grid = document.getElementById('grid');
@@ -598,14 +658,16 @@
                 const box = document.getElementById('toast-box');
                 const sub = document.getElementById('toast-sub');
                 document.getElementById('toast-word').innerText = w;
+                const st = state.settings || MODES.normal;
+                const bonusTxt = (isLegend ? st.legendBonus : st.bonus) > 0 ? ` +${isLegend ? st.legendBonus : st.bonus}s` : '';
                 if (isLegend) {
                     box.style.borderColor = 'var(--gold)';
-                    sub.innerText = isNew ? '✨NEW LEGENDARY!! +5s' : 'LEGENDARY!! +5s';
+                    sub.innerText = (isNew ? '✨NEW LEGENDARY!!' : 'LEGENDARY!!') + bonusTxt;
                     sub.style.color = '#854d0e';
                     this.createConfetti();
                 } else {
                     box.style.borderColor = isNew ? '#f59e0b' : 'var(--primary)';
-                    sub.innerText = isNew ? '✨NEW! +2s' : 'GET! +2s';
+                    sub.innerText = (isNew ? '✨NEW!' : 'GET!') + bonusTxt;
                     sub.style.color = isNew ? '#f59e0b' : 'var(--danger)';
                 }
                 t.style.opacity = '1';
@@ -669,16 +731,21 @@
             init() {
                 Deps.audio.init();
                 Deps.audio.updateBGM('game');
+                state.settings = MODES[state.mode] || MODES.normal;
                 state.isRunning = true;
                 state.score = 0;
-                state.timeLeft = 60;
+                state.timeLeft = isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 0;
+                document.getElementById('timer-wrap').style.display = isFinite(state.settings.timeLimit) ? '' : 'none';
+                document.getElementById('quit-btn').style.display = state.mode === 'relax' ? '' : 'none';
                 UI.switchScreen(null);
                 this.nextStage();
                 if (state.mainTimer) clearInterval(state.mainTimer);
                 state.mainTimer = setInterval(() => {
                     if (!state.isRunning || document.hidden) return;
-                    state.timeLeft -= 0.1;
-                    if (state.timeLeft <= 0) this.end();
+                    if (isFinite(state.settings.timeLimit)) {
+                        state.timeLeft -= 0.1;
+                        if (state.timeLeft <= 0) this.end();
+                    }
                     UI.updateHUD();
                 }, 100);
             },
@@ -709,9 +776,10 @@
             startHintTimers() {
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
-                state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), 5000));
-                state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), 10000));
-                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), 15000));
+                const delays = (state.settings && state.settings.hintDelays) || [5000, 10000, 15000];
+                state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), delays[0]));
+                state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), delays[1]));
+                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), delays[2]));
             },
             clearHintTimers() {
                 state.hintTimers.forEach(clearTimeout);
@@ -724,8 +792,11 @@
                     const isLegend = LEGENDARY_LIST.includes(word);
                     const isNew = !state.pokedex.has(word);
                     Deps.audio.playSuccess(isLegend);
-                    state.score += isLegend ? 500 : 100;
-                    state.timeLeft = Math.min(60, state.timeLeft + (isLegend ? 5 : 2));
+                    const st = state.settings || MODES.normal;
+                    state.score += (isLegend ? 500 : 100) * (st.scoreMul || 1);
+                    if (isFinite(st.timeLimit)) {
+                        state.timeLeft = Math.min(st.timeLimit, state.timeLeft + (isLegend ? st.legendBonus : st.bonus));
+                    }
                     state.pokedex.add(word);
                     if (isNew) Deps.storage.save();
                     state.selectedIndices.forEach(idx => {
@@ -743,7 +814,11 @@
                 state.isRunning = false;
                 state.finishedOnce = true;
                 const isNewRecord = Deps.storage.saveBest(state.score);
-                document.getElementById('final-best').innerText = SaveData.data.best || 0;
+                document.getElementById('result-title').innerText = state.mode === 'relax' ? 'おつかれさま！' : 'TIME UP!';
+                document.getElementById('final-best-label').innerText = `BEST（${state.settings ? state.settings.label : 'ふつう'}）`;
+                document.getElementById('final-best').innerText = Deps.storage.bestFor(state.mode);
+                document.getElementById('quit-btn').style.display = 'none';
+                document.getElementById('timer-wrap').style.display = '';
                 document.getElementById('new-record').style.display = (isNewRecord && state.score > 0) ? 'block' : 'none';
                 this.clearHintTimers();
                 clearInterval(state.mainTimer);
@@ -822,6 +897,7 @@
         window.onload = () => {
             SaveData.load();
             document.getElementById('bgm-toggle').innerText = AudioEngine.isMuted ? '🔇' : '🔊';
+            refreshModeUI();
             updateStartProgress();
             UI.updateHUD();
             setupEvents();

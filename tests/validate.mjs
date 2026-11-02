@@ -82,24 +82,70 @@ const boardTest = get(`(() => {
 })()`);
 check('盤面生成 全件×30回', boardTest.length === 0, boardTest.slice(0, 5).join(','));
 
-// ===== 保存の往復 =====
+// ===== モード定義（Phase 1） =====
+const modes = get('MODES');
+check('モード定義 4種', ['easy', 'normal', 'hard', 'relax'].every(k => !!modes[k]),
+  Object.keys(modes).join(','));
+check('モード項目がそろっている', Object.values(modes).every(md =>
+  md.label && 'timeLimit' in md && typeof md.bonus === 'number' &&
+  typeof md.legendBonus === 'number' && Array.isArray(md.hintDelays) &&
+  md.hintDelays.length === 3 && typeof md.scoreMul === 'number' && md.desc));
+check('のんびりは時間無制限', modes.relax.timeLimit === Infinity);
+check('むずかしいはスコア2倍', modes.hard.scoreMul === 2);
+
+// ===== 保存の往復（モード別ベスト） =====
 const saveTest = get(`(() => {
   state.pokedex = new Set(['ピカチュウ', 'ミュウ']);
+  state.mode = 'normal'; state.settings = MODES.normal;
   SaveData.saveBest(300);
   SaveData.saveMuted(true);
+  SaveData.saveMode('hard');
   SaveData.save();
   state.pokedex = new Set();
-  SaveData.data.best = 0;
+  SaveData.data.bests = {};
   SaveData.load();
   return {
     dex: Array.from(state.pokedex).sort().join(','),
-    best: SaveData.data.best,
+    bestNormal: SaveData.bestFor('normal'),
     muted: AudioEngine.isMuted,
+    mode: state.mode,
   };
 })()`);
-check('保存の往復（ずかん・ベスト・ミュート）',
-  saveTest.dex === 'ピカチュウ,ミュウ' && saveTest.best === 300 && saveTest.muted === true,
+check('保存の往復（ずかん・モード別ベスト・ミュート・モード）',
+  saveTest.dex === 'ピカチュウ,ミュウ' && saveTest.bestNormal === 300 &&
+  saveTest.muted === true && saveTest.mode === 'hard',
   JSON.stringify(saveTest));
+
+// ===== モード別ベストの分離 =====
+const sepTest = get(`(() => {
+  state.mode = 'easy'; SaveData.saveBest(111);
+  state.mode = 'hard'; SaveData.saveBest(50);
+  return {
+    easy: SaveData.bestFor('easy'),
+    normal: SaveData.bestFor('normal'),
+    hard: SaveData.bestFor('hard'),
+    relax: SaveData.bestFor('relax'),
+  };
+})()`);
+check('ベストはモードごとに別々に残る',
+  sepTest.easy === 111 && sepTest.normal === 300 && sepTest.hard === 50 && sepTest.relax === 0,
+  JSON.stringify(sepTest));
+
+// ===== 旧形式セーブ（best単体）からの移行 =====
+const migTest = get(`(() => {
+  localStorage.setItem(SaveData.KEY, JSON.stringify({ pokedex: ['ミュウ'], best: 250, muted: false }));
+  SaveData.data = { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal' };
+  state.pokedex = new Set();
+  SaveData.load();
+  return {
+    bestNormal: SaveData.bestFor('normal'),
+    mode: state.mode,
+    dex: Array.from(state.pokedex).join(','),
+  };
+})()`);
+check('旧セーブのベストはふつうのベストへ移行',
+  migTest.bestNormal === 250 && migTest.mode === 'normal' && migTest.dex === 'ミュウ',
+  JSON.stringify(migTest));
 
 console.log(failures ? `\n${failures}件 失敗` : '\n全て合格');
 process.exit(failures ? 1 : 0);
