@@ -1,21 +1,23 @@
-# pokemon_find_name（devブランチ＝開発版）
+# ポケなぞ！
 
-**ポケなぞ！** の開発ブランチです。安定版は `main` ブランチにそのまま残してあります。
+カタカナの文字盤をなぞってポケモンの名前を作る、60秒ワードサーチゲームです。
 
 ## 🎮 あそぶ
 
-- **安定版（main）**: https://haruzion.github.io/pokemon_find_name/
-- **開発版（dev）プレビュー**: https://cdn.statically.io/gh/haruzion/pokemon_find_name/dev/index.html
-  （CDN経由のため、反映に数分かかることがあります）
+**▶️ ポケなぞ！をプレイ: https://haruzion.github.io/pokemon_find_name/**
 
-## ロードマップ
+## 遊び方・機能
 
-開発の進め方は [ROADMAP.md](ROADMAP.md) を参照。
+- 5×5の文字盤をなぞって、お題のポケモンの名前を完成させよう。正解で時間ボーナス＆スコア
+- 収録ポケモン **795匹**（伝説38匹）。集めたポケモンは「ずかん」に残ります
+- **モードえらび**: やさしい（90秒）／ふつう（60秒）／むずかしい（45秒・スコア2倍）／のんびり（時間制限なし）
+- **ずかんは地方別**（カントー〜パルデア）に整理され、地方ごとの進捗が分かります
+- **実績バッジ10種**: ずかんの達成数や伝説ゲットなどで獲得。結果画面で発表されます
+- ベストスコア（モード別）・ずかん・バッジは端末に保存されます
 
 ## 開発メモ
 
-- 単一HTML（`index.html`）で動作します
-- 構成: データ（`PokemonData`）／盤面生成（`BoardFactory`、純粋関数）／保存（`SaveData`）／音（`AudioEngine`）／モード定義（`MODES`）に分離し、`Game` は `Deps` 経由で依存を使う作りです
-- ポケモンを追加するときは `PokemonData.NAMES`（伝説は `PokemonData.LEGENDARY`）に名前を足すだけ。条件は「5文字以内・カタカナのみ」
-- 追加したら必ず検証を実行してください: `node tests/validate.mjs`
-- 安定版への反映は、相談のうえで dev → main のPRで行います
+- 単一HTML（`index.html`）で動作し、GitHub Pagesで公開しています
+- 構成: データ（`PokemonData`）／盤面生成（`BoardFactory`、純粋関数）／保存（`SaveData`）／音（`AudioEngine`）／モード定義（`MODES`）／バッジ（`BADGES`）
+- 開発は `dev` ブランチで行い、安定版への反映は PR で取り込みます。進め方は [ROADMAP.md](ROADMAP.md) を参照
+- 変更したら必ず検証を実行してください: `node tests/validate.mjs`
