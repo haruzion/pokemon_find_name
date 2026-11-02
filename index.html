@@ -162,19 +162,27 @@
         }
 
         .screen {
-            display: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             position: fixed;
             inset: 0;
             z-index: 100;
             background-color: var(--bg-main);
             padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(12px) scale(0.99);
+            transition: opacity 0.28s ease, transform 0.28s ease, visibility 0.28s;
+            pointer-events: none;
         }
 
         .active-screen {
-            display: flex !important;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            opacity: 1;
+            visibility: visible;
+            transform: none;
+            pointer-events: auto;
         }
 
         .bubble-btn {
@@ -208,6 +216,93 @@
             100% { transform: scale(1); }
         }
         .new-pop { animation: newPop 0.45s ease; box-shadow: 0 0 24px rgba(245, 158, 11, 0.55); }
+        .scope-chip {
+            padding: 6px 12px; border-radius: 999px;
+            border: 2px solid #fde68a; background: white;
+            color: #d97706; font-weight: 900; font-size: 11px; cursor: pointer;
+        }
+        .scope-chip.active { background: #f59e0b; color: white; border-color: #d97706; }
+        /* ===== UI充実（演出） ===== */
+        #score-display { display: inline-block; }
+        @keyframes scorePop { 40% { transform: scale(1.4); } }
+        .score-pop { animation: scorePop 0.25s ease; }
+        @keyframes cellIn { from { transform: scale(0.5); opacity: 0; } }
+        .cell { animation: cellIn 0.16s ease-out backwards; }
+        #line-svg { filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.9)); }
+        .mode-chip:active, .scope-chip:active { transform: scale(0.93); }
+        #danger-vignette {
+            position: fixed; inset: 0; pointer-events: none; z-index: 90;
+            box-shadow: inset 0 0 60px rgba(244, 63, 94, 0.55);
+            opacity: 0; transition: opacity 0.3s;
+        }
+        body.danger #danger-vignette { opacity: 1; animation: dangerPulse 0.7s ease-in-out infinite alternate; }
+        @keyframes dangerPulse { from { box-shadow: inset 0 0 36px rgba(244, 63, 94, 0.3); } to { box-shadow: inset 0 0 84px rgba(244, 63, 94, 0.7); } }
+        body.danger #timer-bar { background-color: #f43f5e !important; }
+        #bg-deco { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+        #bg-deco span { position: absolute; font-size: 22px; opacity: 0.3; animation: floaty 5s ease-in-out infinite alternate; }
+        @keyframes floaty { from { transform: translateY(-8px) rotate(-8deg); } to { transform: translateY(12px) rotate(10deg); } }
+        #game-hud, main { position: relative; z-index: 1; }
+        /* ===== フィーバー ===== */
+        @keyframes comboPop { 40% { transform: scale(1.25); } }
+        .combo-pop { animation: comboPop 0.25s ease; }
+        body.fever #grid { animation: feverGlow 0.8s ease-in-out infinite alternate; }
+        @keyframes feverGlow { from { filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.35)); } to { filter: drop-shadow(0 0 24px rgba(245, 158, 11, 0.75)); } }
+        #fever-vignette {
+            position: fixed; inset: 0; pointer-events: none; z-index: 89;
+            box-shadow: inset 0 0 70px rgba(245, 158, 11, 0.5);
+            opacity: 0; transition: opacity 0.35s;
+        }
+        body.fever #fever-vignette { opacity: 1; animation: feverPulse 0.7s ease-in-out infinite alternate; }
+        @keyframes feverPulse { from { box-shadow: inset 0 0 44px rgba(245, 158, 11, 0.3); } to { box-shadow: inset 0 0 92px rgba(245, 158, 11, 0.65); } }
+        body.fever-shake main { animation: feverShake 0.4s ease; }
+        @keyframes feverShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+        #fever-banner {
+            position: fixed; left: 50%; top: 36%; transform: translate(-50%, -50%) scale(0.5);
+            font-size: 3rem; font-weight: 900; color: #f59e0b; white-space: nowrap;
+            text-shadow: 0 4px 0 #fff, 0 8px 24px rgba(245, 158, 11, 0.5);
+            opacity: 0; pointer-events: none; z-index: 1100;
+        }
+        #fever-banner.show { animation: feverBanner 1.4s ease forwards; }
+        @keyframes feverBanner {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(-6deg); }
+            25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(2deg); }
+            45% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+            75% { opacity: 1; }
+            100% { opacity: 0; transform: translate(-50%, -60%) scale(1.05); }
+        }
+        /* ===== タイトル画面（キービジュアル） ===== */
+        #start-overlay {
+            background: linear-gradient(180deg, #7dd3fc 0%, #bae6fd 45%, #dcf2e3 100%);
+            background-size: cover;
+            background-position: center top;
+            justify-content: flex-start;
+        }
+        #start-overlay.art-ready { background-image: var(--title-art); }
+        .title-inner { display: flex; flex-direction: column; width: 100%; max-width: 24rem; height: 100%; }
+        .title-logo { text-align: center; margin-top: 3vh; }
+        .title-eyebrow { font-size: 10px; letter-spacing: 0.42em; text-indent: 0.42em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.45); }
+        .title-jp { font-size: 56px; font-weight: 900; letter-spacing: 0.03em; line-height: 1.05; white-space: nowrap; color: #fff; text-shadow: 0 2px 0 #0284c7, 0 4px 0 rgba(2, 132, 199, 0.5), 0 10px 26px rgba(2, 90, 140, 0.45); }
+        .title-jp .bang { color: #fde047; }
+        .title-en { margin-top: 10px; font-size: 11px; letter-spacing: 0.55em; text-indent: 0.55em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.5); }
+        .title-tag { margin-top: 12px; font-size: 12.5px; letter-spacing: 0.14em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.55); }
+        .title-spacer { flex: 1; }
+        .title-card { background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 16px 20px; box-shadow: 0 14px 34px rgba(15, 47, 71, 0.18); }
+        .tc-row { display: flex; justify-content: space-between; align-items: baseline; }
+        .tc-label { font-size: 11px; letter-spacing: 0.22em; color: #7d93a5; font-weight: 700; }
+        .tc-num { font-size: 16px; font-weight: 900; color: #0f2f47; }
+        .tc-num small { font-size: 11px; color: #94a3b8; font-weight: 700; }
+        .tc-bar { margin-top: 9px; height: 6px; background: #e7eff5; border-radius: 3px; overflow: hidden; }
+        .tc-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #38bdf8, #0284c7); border-radius: 3px; transition: width 0.6s ease; }
+        .tc-badges { margin-top: 11px; display: flex; gap: 5px; font-size: 15px; }
+        .tc-badges .off { opacity: 0.25; filter: grayscale(1); }
+        .tc-best { font-size: 12.5px; font-weight: 900; color: #0f2f47; white-space: nowrap; }
+        .title-summary { margin-top: 13px; text-align: center; font-size: 12px; letter-spacing: 0.2em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.6); }
+        .title-start { margin-top: 14px; width: 100%; height: 62px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 18px; font-size: 20px; font-weight: 900; letter-spacing: 0.35em; text-indent: 0.35em; box-shadow: 0 14px 28px rgba(2, 90, 140, 0.35); font-family: inherit; }
+        .title-start:active { transform: translateY(2px) scale(0.99); }
+        .title-subs { margin-top: 12px; display: flex; gap: 10px; }
+        .title-sub { flex: 1; height: 44px; background: rgba(255, 255, 255, 0.94); border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.15em; color: #475569; font-family: inherit; }
+        @keyframes titleIn { from { opacity: 0; transform: translateY(14px); } }
+        .anim-in { animation: titleIn 0.55s ease backwards; }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
@@ -240,6 +335,10 @@
         <div id="timer-wrap" class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
             <div id="timer-bar" class="h-full bg-rose-400 transition-all duration-100" style="width: 100%"></div>
         </div>
+        <div id="combo-display" class="text-center font-black text-orange-500 text-sm" style="display:none"></div>
+        <div id="fever-bar-wrap" class="w-full h-3 bg-white border-2 border-orange-200 rounded-full overflow-hidden" style="display:none">
+            <div id="fever-bar" class="h-full bg-gradient-to-r from-amber-400 to-orange-500" style="width: 100%"></div>
+        </div>
     </div>
 
     <!-- MAIN GAME -->
@@ -254,15 +353,70 @@
         <div class="mt-6 w-full flex justify-center">
             <div id="current-word-display" class="text-3xl font-black text-sky-400 bg-white border-4 border-sky-100 px-10 py-3 rounded-3xl shadow-lg min-w-[220px] text-center italic">???</div>
         </div>
+        <div id="scope-hint" class="text-center text-xs font-black text-slate-400 mt-2 h-4"></div>
     </main>
 
     <!-- SCREENS -->
     <div id="start-overlay" class="screen active-screen">
-        <div class="text-center animate-bounce">
-            <div class="text-7xl mb-4">✨</div>
-            <h1 class="text-5xl font-black text-amber-500 italic mb-2">POKÉ NAZO</h1>
-            <p class="text-amber-400 font-bold mb-6">でんせつの ポケモンを あつめよう！</p>
+        <div class="title-inner">
+            <div class="title-logo anim-in" style="animation-delay:0.05s">
+                <div class="title-eyebrow">KATAKANA WORD SEARCH</div>
+                <h1 class="title-jp">ポケなぞ<span class="bang">！</span></h1>
+                <div class="title-en">POKÉ NAZO</div>
+                <p class="title-tag">でんせつの ポケモンを あつめよう！</p>
+            </div>
+            <div class="title-spacer"></div>
+            <div class="title-card anim-in" style="animation-delay:0.2s">
+                <div class="tc-row">
+                    <span class="tc-label">ずかん</span>
+                    <span class="tc-num"><span id="dex-count">0</span> <small>/ <span id="dex-total">795</span> ・ <span id="dex-pct">0</span>%</small></span>
+                </div>
+                <div class="tc-bar"><i id="dex-bar-fill"></i></div>
+                <div class="tc-row" style="margin-top:11px">
+                    <span class="tc-label">ベスト</span>
+                    <span id="start-progress" class="tc-best"></span>
+                </div>
+                <div id="title-badges" class="tc-badges"></div>
+            </div>
+            <p id="start-summary" class="title-summary anim-in" style="animation-delay:0.3s"></p>
+            <button onclick="Game.init()" class="title-start anim-in" style="animation-delay:0.4s">スタート</button>
+            <div class="title-subs anim-in" style="animation-delay:0.5s">
+                <button onclick="UI.openSettings()" class="title-sub">⚙ せってい</button>
+                <button onclick="UI.openPokedex()" class="title-sub">📖 ずかん</button>
+            </div>
         </div>
+    </div>
+
+    <div id="settings-screen" class="screen">
+        <div class="w-full max-w-md flex flex-col h-full p-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black text-sky-500 italic">せってい</h2>
+                <button onclick="UI.closeSettings()" class="bg-white border-2 border-slate-200 px-6 py-2 rounded-full text-slate-400 font-bold text-sm">とじる</button>
+            </div>
+            <div class="overflow-y-auto flex-1 pb-10 flex flex-col items-center w-full">
+                <p class="text-slate-400 font-black text-xs mb-2 self-start">むずかしさ</p>
+        <div class="flex gap-2 mb-2 w-full max-w-xs" id="mode-select">
+            <button type="button" data-mode="easy" class="mode-chip" onclick="selectMode('easy')">やさしい</button>
+            <button type="button" data-mode="normal" class="mode-chip" onclick="selectMode('normal')">ふつう</button>
+            <button type="button" data-mode="hard" class="mode-chip" onclick="selectMode('hard')">むずかしい</button>
+            <button type="button" data-mode="relax" class="mode-chip" onclick="selectMode('relax')">のんびり</button>
+        </div>
+        <p id="mode-desc" class="text-slate-400 font-bold text-xs mb-5"></p>
+        <p class="text-slate-400 font-black text-xs mb-2">しゅつだいテーマ</p>
+        <div class="flex flex-wrap gap-1.5 mb-6 w-full max-w-xs justify-center" id="scope-select">
+            <button type="button" data-scope="all" class="scope-chip" onclick="selectScope('all')">ぜんぶ</button>
+            <button type="button" data-scope="legend" class="scope-chip" onclick="selectScope('legend')">でんせつ</button>
+            <button type="button" data-scope="カントー" class="scope-chip" onclick="selectScope('カントー')">カントー</button>
+            <button type="button" data-scope="ジョウト" class="scope-chip" onclick="selectScope('ジョウト')">ジョウト</button>
+            <button type="button" data-scope="ホウエン" class="scope-chip" onclick="selectScope('ホウエン')">ホウエン</button>
+            <button type="button" data-scope="シンオウ" class="scope-chip" onclick="selectScope('シンオウ')">シンオウ</button>
+            <button type="button" data-scope="イッシュ" class="scope-chip" onclick="selectScope('イッシュ')">イッシュ</button>
+            <button type="button" data-scope="カロス" class="scope-chip" onclick="selectScope('カロス')">カロス</button>
+            <button type="button" data-scope="アローラ" class="scope-chip" onclick="selectScope('アローラ')">アローラ</button>
+            <button type="button" data-scope="ガラル" class="scope-chip" onclick="selectScope('ガラル')">ガラル</button>
+            <button type="button" data-scope="パルデア" class="scope-chip" onclick="selectScope('パルデア')">パルデア</button>
+        </div>
+                <p class="text-slate-400 font-black text-xs mb-2 mt-2 self-start">あそびかた</p>
         <div class="bg-white/80 border-4 border-sky-100 rounded-3xl px-6 py-4 mb-5 text-left text-sm font-bold text-slate-500 leading-relaxed w-full max-w-xs">
             🎮 あそびかた<br>
             ・もじを なぞって ポケモンの なまえを つくろう<br>
@@ -270,17 +424,10 @@
             ・まちがえても OK！ つぎを さがそう<br>
             ・ずかんは この たんまつに ほぞんされるよ
         </div>
-        <p id="start-progress" class="text-sky-500 font-black mb-4 text-sm"></p>
-        <div class="flex gap-2 mb-2 w-full max-w-xs" id="mode-select">
-            <button type="button" data-mode="easy" class="mode-chip" onclick="selectMode('easy')">やさしい</button>
-            <button type="button" data-mode="normal" class="mode-chip" onclick="selectMode('normal')">ふつう</button>
-            <button type="button" data-mode="hard" class="mode-chip" onclick="selectMode('hard')">むずかしい</button>
-            <button type="button" data-mode="relax" class="mode-chip" onclick="selectMode('relax')">のんびり</button>
+                <p class="text-slate-300 font-bold text-[10px] mt-5 text-center leading-relaxed">🎵 音楽: 魔王魂（森田交一）<br>「新たな大地」「キャロットマンステージ」「至福の隙間」「bravery heart」<br>🔊 効果音: 効果音ラボ</p>
+            </div>
         </div>
-        <p id="mode-desc" class="text-slate-400 font-bold text-xs mb-6"></p>
-        <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
-            スタート！
-        </button>
+    </div>
     </div>
 
     <div id="result-screen" class="screen">
@@ -321,6 +468,16 @@
     </div>
 
     <!-- TOAST -->
+    <div id="fever-banner">🔥 FEVER！ 🔥</div>
+    <div id="fever-vignette"></div>
+    <div id="danger-vignette"></div>
+    <div id="bg-deco" aria-hidden="true">
+        <span style="left:6%; top:10%">⭐</span>
+        <span style="left:85%; top:16%; animation-delay:1.1s">✨</span>
+        <span style="left:10%; top:76%; animation-delay:2s">⭐</span>
+        <span style="left:82%; top:72%; animation-delay:0.5s">💧</span>
+        <span style="left:48%; top:4%; animation-delay:1.6s">✨</span>
+    </div>
     <div id="toast" class="fixed inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-all duration-300 z-[600]">
         <div id="toast-box" class="bg-white border-[12px] border-sky-300 px-12 py-10 rounded-[4rem] shadow-2xl text-center transform scale-50">
             <div id="toast-word" class="text-sky-500 font-black text-5xl mb-2 italic"></div>
@@ -572,6 +729,21 @@
             relax:  { label: 'のんびり',   timeLimit: Infinity, bonus: 0, legendBonus: 0, hintDelays: [3000, 6000, 10000],  scoreMul: 1, desc: 'じかんせいげんなし・おわるボタンで しゅうりょう' }
         };
 
+        // ===== 出題テーマ（scope） =====
+        function scopePool(scope) {
+            if (scope === 'legend') return LEGENDARY_LIST;
+            if (scope && scope !== 'all' && PokemonData.REGIONS[scope]) return PokemonData.REGIONS[scope];
+            return null; // ぜんぶ = 従来プール（伝説ウェーブ＋全種）
+        }
+
+        function pickTarget(pool, random) {
+            const uncollected = pool.filter(p => !state.pokedex.has(p));
+            if (uncollected.length > 0 && random() < 0.8) {
+                return uncollected[Math.floor(random() * uncollected.length)];
+            }
+            return pool[Math.floor(random() * pool.length)];
+        }
+
         // ===== 実績バッジ（Phase 2） =====
         const BADGES = [
             { id: 'first-play', icon: '👣', name: 'はじめのいっぽ', desc: 'はじめて あそびきった', test: s => s.plays >= 1 },
@@ -635,7 +807,7 @@
         // ===== 保存（ずかん・ベストスコア・音設定を端末に残す） =====
         const SaveData = {
             KEY: 'pokenazo-save-v1',
-            data: { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0 },
+            data: { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0, scope: 'all' },
             load() {
                 try {
                     const raw = localStorage.getItem(this.KEY);
@@ -649,6 +821,7 @@
                 AudioEngine.isMuted = !!this.data.muted;
                 state.mode = MODES[this.data.mode] ? this.data.mode : 'normal';
                 state.settings = MODES[state.mode];
+                state.scope = (this.data.scope === 'all' || this.data.scope === 'legend' || PokemonData.REGIONS[this.data.scope]) ? this.data.scope : 'all';
                 this.awardBadges();
             },
             save() {
@@ -673,6 +846,10 @@
             },
             saveMode(m) {
                 this.data.mode = m;
+                this.save();
+            },
+            saveScope(s) {
+                this.data.scope = s;
                 this.save();
             },
             addPlay() {
@@ -704,6 +881,7 @@
             state.settings = MODES[m];
             if (Deps.storage) Deps.storage.saveMode(m);
             refreshModeUI();
+            refreshScopeUI();
             updateStartProgress();
         }
 
@@ -713,11 +891,51 @@
             });
             const desc = document.getElementById('mode-desc');
             if (desc && state.settings) desc.innerText = state.settings.desc;
+            updateStartSummary();
+        }
+
+        // テーマ選択（スタート画面のチップ）
+        function selectScope(s) {
+            if (s !== 'all' && s !== 'legend' && !PokemonData.REGIONS[s]) return;
+            state.scope = s;
+            if (Deps.storage) Deps.storage.saveScope(s);
+            refreshScopeUI();
+        }
+
+        function refreshScopeUI() {
+            document.querySelectorAll('#scope-select .scope-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.scope === state.scope);
+            });
+            updateStartSummary();
+        }
+
+        function updateStartSummary() {
+            const el = document.getElementById('start-summary');
+            if (!el) return;
+            const modeLabel = state.settings ? state.settings.label : 'ふつう';
+            const scopeLabel = state.scope === 'all' ? 'ぜんぶ' : state.scope === 'legend' ? 'でんせつ' : (state.scope + 'だけ');
+            el.innerText = modeLabel + ' ・ ' + scopeLabel;
         }
 
         function updateStartProgress() {
+            const total = POKEMON_LIST.length;
+            const n = state.pokedex.size;
+            const dc = document.getElementById('dex-count');
+            if (dc) dc.innerText = n;
+            const dt = document.getElementById('dex-total');
+            if (dt) dt.innerText = total;
+            const dp = document.getElementById('dex-pct');
+            if (dp) dp.innerText = Math.floor(n / total * 100);
+            const bar = document.getElementById('dex-bar-fill');
+            if (bar) bar.style.width = (n / total * 100) + '%';
+            const badgesEl = document.getElementById('title-badges');
+            if (badgesEl) {
+                badgesEl.innerHTML = BADGES.map(function (b) {
+                    return '<span class="' + (SaveData.hasBadge(b.id) ? '' : 'off') + '">' + b.icon + '</span>';
+                }).join('');
+            }
             const el = document.getElementById('start-progress');
-            if (el) el.innerText = `ずかん ${state.pokedex.size} / ${POKEMON_LIST.length}　・　ベスト（${state.settings ? state.settings.label : 'ふつう'}）${SaveData.bestFor(state.mode)}てん`;
+            if (el) el.innerText = `（${state.settings ? state.settings.label : 'ふつう'}）${SaveData.bestFor(state.mode)}てん`;
         }
 
         const AudioEngine = {
@@ -725,13 +943,64 @@
             masterGain: null,
             isMuted: false,
             bgmInterval: null,
+            bgmEl: null,
+            bgmScene: null,
+            bgmWanted: false,
+            bgmBroken: false,
+            seBuffers: {},
+            _blobURLs: {},
+            BGM_FILES: { title: 'audio/bgm_title.mp3.b64', game: 'audio/bgm_game.mp3.b64', relax: 'audio/bgm_relax.mp3.b64', fever: 'audio/bgm_fever.mp3.b64' },
+            SE_FILES: { tap: 'audio/se_tap.mp3.b64', start: 'audio/se_start.mp3.b64', tick: 'audio/se_tick.mp3.b64', get: 'audio/se_get.mp3.b64', legend: 'audio/se_legend.mp3.b64', badge: 'audio/se_badge.mp3.b64' },
             init() {
                 if (this.ctx) return;
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 this.masterGain = this.ctx.createGain();
                 this.masterGain.gain.value = this.isMuted ? 0 : 1;
                 this.masterGain.connect(this.ctx.destination);
+                this.loadSE();
                 this.updateBGM('title');
+            },
+            async fetchAudioURL(path) {
+                if (this._blobURLs[path]) return this._blobURLs[path];
+                let b64 = '';
+                const res = await fetch(path);
+                if (res.ok) {
+                    b64 = (await res.text()).trim();
+                } else {
+                    // 分割ファイル（.p1, .p2, ...）を連結して復元する
+                    for (let i = 1; i <= 12; i++) {
+                        const r = await fetch(path + '.p' + i);
+                        if (!r.ok) break;
+                        b64 += (await r.text()).trim();
+                    }
+                    if (!b64) throw new Error('audio load failed: ' + path);
+                }
+                const bin = atob(b64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                const url = URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
+                this._blobURLs[path] = url;
+                return url;
+            },
+            loadSE() {
+                Object.entries(this.SE_FILES).forEach(([name, path]) => {
+                    (async () => {
+                        try {
+                            const url = await this.fetchAudioURL(path);
+                            const buf = await (await fetch(url)).arrayBuffer();
+                            this.seBuffers[name] = await this.ctx.decodeAudioData(buf);
+                        } catch (e) { /* 読めない場合はその効果音だけ無し */ }
+                    })();
+                });
+            },
+            playSE(name, rate = 1) {
+                if (!this.ctx || !this.seBuffers[name]) return false;
+                const src = this.ctx.createBufferSource();
+                src.buffer = this.seBuffers[name];
+                src.playbackRate.value = rate;
+                src.connect(this.masterGain);
+                src.start();
+                return true;
             },
             toggleMute() {
                 this.isMuted = !this.isMuted;
@@ -739,6 +1008,7 @@
                 if (this.ctx && this.masterGain) {
                     this.masterGain.gain.setValueAtTime(this.isMuted ? 0 : 1, this.ctx.currentTime);
                 }
+                if (this.bgmEl) this.bgmEl.volume = this.isMuted ? 0 : 0.45;
                 document.getElementById('bgm-toggle').innerText = this.isMuted ? '🔇' : '🔊';
             },
             playTone(freq, type, dur, vol = 0.1) {
@@ -752,14 +1022,53 @@
                 o.connect(g); g.connect(this.masterGain);
                 o.start(); o.stop(this.ctx.currentTime + dur);
             },
-            playSuccess(isLegend) {
+            playSuccess(isLegend, rate = 1) {
+                if (this.playSE(isLegend ? 'legend' : 'get', rate)) return;
                 const base = isLegend ? 880 : 523.25;
                 const type = isLegend ? 'square' : 'triangle';
                 this.playTone(base, type, 0.4);
                 this.playTone(base * 1.25, type, 0.4, 0.08);
                 this.playTone(base * 1.5, type, 0.5, 0.06);
             },
-            updateBGM(mode) {
+            playTap() { if (!this.ctx) this.init(); this.playSE('tap'); },
+            playStart() { this.playSE('start'); },
+            playBadge() { this.playSE('badge'); },
+            playTick(len) { this.playSE('tick', 0.9 + Math.min(len, 8) * 0.07); },
+            bgmPathFor(mode) {
+                if (mode === 'game') {
+                    if (state.fever) return this.BGM_FILES.fever;
+                    return state.mode === 'relax' ? this.BGM_FILES.relax : this.BGM_FILES.game;
+                }
+                return this.BGM_FILES.title;
+            },
+            async updateBGM(mode) {
+                this.bgmScene = mode;
+                if (this.bgmBroken) { this.startSynthBGM(mode); return; }
+                const scene = mode;
+                const path = this.bgmPathFor(mode);
+                try {
+                    const url = await this.fetchAudioURL(path);
+                    if (this.bgmScene !== scene) return;
+                    if (!this.bgmEl) {
+                        this.bgmEl = new Audio();
+                        this.bgmEl.loop = true;
+                        this.bgmEl.preservesPitch = true;
+                        this.bgmEl.addEventListener('error', () => { this.bgmBroken = true; this.startSynthBGM(this.bgmScene || 'title'); }, true);
+                    }
+                    if (this.bgmEl.dataset.path !== path) {
+                        this.bgmEl.dataset.path = path;
+                        this.bgmEl.src = url;
+                    }
+                    this.bgmEl.volume = this.isMuted ? 0 : 0.45;
+                    this.bgmEl.playbackRate = 1;
+                    this.bgmWanted = true;
+                    if (!document.hidden) { try { await this.bgmEl.play(); } catch (e) { /* 操作待ち */ } }
+                } catch (e) {
+                    this.bgmBroken = true;
+                    this.startSynthBGM(mode);
+                }
+            },
+            startSynthBGM(mode) {
                 if (this.bgmInterval) clearInterval(this.bgmInterval);
                 let step = 0;
                 const notes = mode === 'game' ? [261.63, 293.66, 329.63, 349.23] : [196.00, 220.00];
@@ -768,6 +1077,15 @@
                     this.playTone(notes[step % notes.length], 'sine', 0.5, 0.02);
                     step++;
                 }, mode === 'game' ? 400 : 800);
+            },
+            setDocumentHidden(hidden) {
+                if (!this.bgmEl) return;
+                if (hidden) {
+                    this.bgmEl.pause();
+                } else if (this.bgmWanted) {
+                    this.bgmEl.volume = this.isMuted ? 0 : 0.45;
+                    try { this.bgmEl.play(); } catch (e) { /* noop */ }
+                }
             }
         };
 
@@ -776,6 +1094,7 @@
             score: 0,
             timeLeft: 60,
             mode: 'normal',
+            scope: 'all',
             settings: null,
             finishedOnce: false,
             quitEarly: false,
@@ -786,6 +1105,11 @@
             targetWord: null,
             targetIndices: [],
             hintTimers: [],
+            streak: 0,
+            fever: false,
+            feverLeft: 0,
+            feverClears: 0,
+            stageFullHint: false,
             mainTimer: null
         };
 
@@ -794,8 +1118,46 @@
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
                 if (id) document.getElementById(id).classList.add('active-screen');
             },
+            updateFeverUI(pop = true) {
+                const el = document.getElementById('combo-display');
+                if (!el) return;
+                const barWrap = document.getElementById('fever-bar-wrap');
+                const bar = document.getElementById('fever-bar');
+                if (state.fever) {
+                    const nextMul = Math.min(2 + state.feverClears, 5);
+                    const timed = state.settings && isFinite(state.settings.timeLimit);
+                    el.innerText = timed
+                        ? '🔥 FEVER あと ' + Math.max(0, Math.ceil(state.feverLeft)) + 'びょう ・ つぎは スコア×' + nextMul
+                        : '🔥 FEVER！ つぎは スコア×' + nextMul;
+                    el.style.display = '';
+                    if (barWrap) {
+                        barWrap.style.display = timed ? '' : 'none';
+                        if (bar) bar.style.width = Math.max(0, state.feverLeft / 15 * 100) + '%';
+                    }
+                } else if (state.streak >= 2) {
+                    el.innerText = '🔥 ' + state.streak + 'れんぞく！ あと ' + (5 - state.streak) + ' で フィーバー';
+                    el.style.display = '';
+                    if (barWrap) barWrap.style.display = 'none';
+                } else {
+                    el.style.display = 'none';
+                    if (barWrap) barWrap.style.display = 'none';
+                }
+                if (pop) { el.classList.remove('combo-pop'); void el.offsetWidth; el.classList.add('combo-pop'); }
+            },
             updateHUD() {
-                document.getElementById('score-display').innerText = state.score;
+                const scoreEl = document.getElementById('score-display');
+                if (scoreEl.innerText !== String(state.score)) {
+                    scoreEl.innerText = state.score;
+                    scoreEl.classList.remove('score-pop');
+                    void scoreEl.offsetWidth;
+                    scoreEl.classList.add('score-pop');
+                }
+                document.body.classList.toggle('danger', !!(state.isRunning && state.settings && isFinite(state.settings.timeLimit) && state.timeLeft <= 10.5 && state.timeLeft > 0));
+                if (AudioEngine.bgmEl) {
+                    const urgent = !!(state.isRunning && state.settings && isFinite(state.settings.timeLimit) && state.timeLeft <= 15 && state.timeLeft > 0);
+                    const rate = urgent ? 1.3 : 1;
+                    if (AudioEngine.bgmEl.playbackRate !== rate) AudioEngine.bgmEl.playbackRate = rate;
+                }
                 document.getElementById('found-count').innerText = `${state.pokedex.size}/${POKEMON_LIST.length}`;
                 const limit = state.settings && isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 60;
                 document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / limit * 100)) + "%";
@@ -808,6 +1170,7 @@
                     cell.className = 'cell';
                     cell.innerText = char;
                     cell.dataset.index = i;
+                    cell.style.animationDelay = (i * 12) + 'ms';
                     grid.appendChild(cell);
                 });
             },
@@ -894,6 +1257,13 @@
                     setTimeout(() => c.remove(), 2000);
                 }
             },
+            openSettings() {
+                this.switchScreen('settings-screen');
+            },
+            closeSettings() {
+                updateStartProgress();
+                this.switchScreen('start-overlay');
+            },
             openPokedex() {
                 const list = document.getElementById('pokedex-list');
                 list.innerHTML = '';
@@ -962,17 +1332,24 @@
             init() {
                 Deps.audio.init();
                 Deps.audio.updateBGM('game');
+                Deps.audio.playStart();
                 state.settings = MODES[state.mode] || MODES.normal;
                 state.isRunning = true;
                 state.score = 0;
                 state.timeLeft = isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 0;
                 document.getElementById('timer-wrap').style.display = isFinite(state.settings.timeLimit) ? '' : 'none';
+                state.streak = 0;
+                state.fever = false;
+                state.feverLeft = 0;
+                state.feverClears = 0;
+                document.body.classList.remove('fever');
                 state.quitEarly = false;
                 const quitBtn = document.getElementById('quit-btn');
                 quitBtn.style.display = '';
                 quitBtn.innerText = state.mode === 'relax' ? '⏹ おわる' : '⏹ やめる';
                 UI.switchScreen(null);
                 this.nextStage();
+                UI.updateFeverUI(false);
                 if (state.mainTimer) clearInterval(state.mainTimer);
                 state.mainTimer = setInterval(() => {
                     if (!state.isRunning || document.hidden) return;
@@ -980,24 +1357,30 @@
                         state.timeLeft -= 0.1;
                         if (state.timeLeft <= 0) this.end();
                     }
+                    if (state.fever && state.settings && isFinite(state.settings.timeLimit)) {
+                        state.feverLeft -= 0.1;
+                        if (state.feverLeft <= 0) this.endFever();
+                        else UI.updateFeverUI(false);
+                    }
                     UI.updateHUD();
                 }, 100);
             },
             nextStage() {
                 this.clearHintTimers();
+                state.stageFullHint = false;
 
-                // 未収集ポケモンを優先的に選択
-                const isLegendWave = Deps.random() < 0.2;
-                const baseList = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
-                const uncollected = baseList.filter(p => !state.pokedex.has(p));
-
-                // 未収集が存在する場合は80%の確率で未収集から選択
+                // 出題テーマでプールを切り替え、未収集を優先的に選択
+                const pool = scopePool(state.scope);
                 let w;
-                if (uncollected.length > 0 && Deps.random() < 0.8) {
-                    w = uncollected[Math.floor(Deps.random() * uncollected.length)];
+                if (pool) {
+                    w = pickTarget(pool, Deps.random);
                 } else {
-                    w = baseList[Math.floor(Deps.random() * baseList.length)];
+                    const isLegendWave = Deps.random() < 0.2;
+                    const baseList = isLegendWave ? LEGENDARY_LIST : ADDED_LIST;
+                    w = pickTarget(baseList, Deps.random);
                 }
+                const hintEl = document.getElementById('scope-hint');
+                if (hintEl) hintEl.innerText = (state.scope && PokemonData.REGIONS[state.scope]) ? state.scope + 'だけ モード' : '';
 
                 const generated = BoardFactory.generate(w, 5, CHARS, Deps.random);
                 state.board = generated.board;
@@ -1010,14 +1393,56 @@
             startHintTimers() {
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
-                const delays = (state.settings && state.settings.hintDelays) || [5000, 10000, 15000];
-                state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), delays[0]));
+                const delays = state.fever ? [700, 1800, 5000] : ((state.settings && state.settings.hintDelays) || [5000, 10000, 15000]);
+                state.hintTimers.push(setTimeout(() => {
+                    // 関係ない文字が1個ずつ、だんだん速く消えていく（緊迫感）
+                    let acc = 0;
+                    let interval = state.fever ? 170 : 150;
+                    const shrink = state.fever ? 0.85 : 0.82;
+                    nonTargetIndices.slice(0, 12).forEach((idx) => {
+                        const d = acc;
+                        state.hintTimers.push(setTimeout(() => cells()[idx]?.classList.add('fade-out'), d));
+                        acc += interval;
+                        interval = Math.max(18, interval * shrink);
+                    });
+                }, delays[0]));
                 state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), delays[1]));
-                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), delays[2]));
+                state.hintTimers.push(setTimeout(() => {
+                    state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all'));
+                    this.onFullHint();
+                }, delays[2]));
             },
             clearHintTimers() {
                 state.hintTimers.forEach(clearTimeout);
                 state.hintTimers = [];
+            },
+            onFullHint() {
+                state.stageFullHint = true;
+                if (state.fever) this.endFever();
+                else if (state.streak > 0) { state.streak = 0; UI.updateFeverUI(true); }
+            },
+            enterFever() {
+                state.fever = true;
+                state.feverClears = 0;
+                state.feverLeft = 15;
+                document.body.classList.add('fever');
+                document.body.classList.add('fever-shake');
+                setTimeout(() => document.body.classList.remove('fever-shake'), 450);
+                Deps.audio.updateBGM('game');
+                Deps.audio.playBadge();
+                const banner = document.getElementById('fever-banner');
+                if (banner) { banner.classList.remove('show'); void banner.offsetWidth; banner.classList.add('show'); }
+                UI.createConfetti();
+                UI.updateFeverUI(true);
+            },
+            endFever() {
+                if (!state.fever) return;
+                state.fever = false;
+                state.feverLeft = 0;
+                state.streak = 0;
+                document.body.classList.remove('fever');
+                if (state.isRunning) Deps.audio.updateBGM('game');
+                UI.updateFeverUI(true);
             },
             checkAnswer() {
                 const word = state.selectedIndices.map(i => state.board[i]).join('');
@@ -1025,9 +1450,20 @@
                     this.clearHintTimers();
                     const isLegend = LEGENDARY_LIST.includes(word);
                     const isNew = !state.pokedex.has(word);
-                    Deps.audio.playSuccess(isLegend);
                     const st = state.settings || MODES.normal;
-                    state.score += (isLegend ? 500 : 100) * (st.scoreMul || 1);
+                    let feverMul = 1;
+                    if (state.fever) {
+                        state.feverClears++;
+                        feverMul = Math.min(1 + state.feverClears, 5);
+                        if (state.feverClears >= 2) setTimeout(() => UI.createConfetti(), 150);
+                        if (isFinite(st.timeLimit)) state.feverLeft = Math.min(15, state.feverLeft + 2);
+                    } else if (!state.stageFullHint) {
+                        state.streak++;
+                    }
+                    Deps.audio.playSuccess(isLegend, 1 + Math.min(state.fever ? state.feverClears : state.streak, 8) * 0.05);
+                    state.score += (isLegend ? 500 : 100) * (st.scoreMul || 1) * feverMul;
+                    if (!state.fever && state.streak >= 5) this.enterFever();
+                    else UI.updateFeverUI(true);
                     if (isFinite(st.timeLimit)) {
                         state.timeLeft = Math.min(st.timeLimit, state.timeLeft + (isLegend ? st.legendBonus : st.bonus));
                     }
@@ -1052,15 +1488,22 @@
                 state.isRunning = false;
                 if (state.mainTimer) clearInterval(state.mainTimer);
                 this.clearHintTimers();
+                document.body.classList.remove('danger');
+                state.fever = false;
+                state.streak = 0;
+                document.body.classList.remove('fever');
                 Deps.audio.updateBGM('title');
                 document.getElementById('quit-btn').style.display = 'none';
                 document.getElementById('timer-wrap').style.display = '';
                 refreshModeUI();
+                refreshScopeUI();
                 updateStartProgress();
                 UI.switchScreen('start-overlay');
             },
             end() {
                 state.isRunning = false;
+                state.fever = false;
+                document.body.classList.remove('fever');
                 state.finishedOnce = true;
                 const isNewRecord = Deps.storage.saveBest(state.score);
                 Deps.storage.addPlay();
@@ -1081,6 +1524,12 @@
                 this.clearHintTimers();
                 clearInterval(state.mainTimer);
                 Deps.audio.updateBGM('result');
+                document.body.classList.remove('danger');
+                if (newBadges.length > 0) Deps.audio.playBadge();
+                if ((isNewRecord && state.score > 0) || newBadges.length > 0) {
+                    setTimeout(() => UI.createConfetti(), 350);
+                    setTimeout(() => UI.createConfetti(), 650);
+                }
                 document.getElementById('final-score').innerText = state.score;
                 document.getElementById('final-pokedex').innerText = `${state.pokedex.size} / ${POKEMON_LIST.length}`;
                 UI.switchScreen('result-screen');
@@ -1114,6 +1563,7 @@
                     if (dx + dy === 1) {
                         if (!state.selectedIndices.includes(i)) {
                             state.selectedIndices.push(i);
+                            Deps.audio.playTick(state.selectedIndices.length);
                             UI.updateSelectionUI();
                         } else if (i === state.selectedIndices[state.selectedIndices.length - 2]) {
                             state.selectedIndices.pop();
@@ -1144,6 +1594,7 @@
 
         // 画面を離れたら音を止め、戻ったら（ミュートでなければ）再開する
         document.addEventListener('visibilitychange', () => {
+            AudioEngine.setDocumentHidden(document.hidden);
             if (!AudioEngine.ctx) return;
             if (document.hidden) {
                 AudioEngine.ctx.suspend();
@@ -1152,10 +1603,45 @@
             }
         });
 
+        // ボタンのタップ音（スタートとミュートボタンは専用処理があるので除く）
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn || btn.id === 'bgm-toggle') return;
+            const oc = btn.getAttribute('onclick') || '';
+            if (oc.includes('Game.init')) return;
+            AudioEngine.playTap();
+        });
+
+        // タイトル画面のキービジュアル（分割Base64から復元、失敗時はグラデーションのまま）
+        (async () => {
+            try {
+                let b64 = '';
+                const first = await fetch('img/title_art.jpg.b64');
+                if (first.ok) {
+                    b64 = (await first.text()).trim();
+                } else {
+                    for (let i = 1; i <= 6; i++) {
+                        const r = await fetch('img/title_art.jpg.b64.p' + i);
+                        if (!r.ok) break;
+                        b64 += (await r.text()).trim();
+                    }
+                }
+                if (!b64) return;
+                const bin = atob(b64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                const url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+                const ov = document.getElementById('start-overlay');
+                ov.style.setProperty('--title-art', 'url(' + url + ')');
+                ov.classList.add('art-ready');
+            } catch (e) { /* グラデーション背景のまま */ }
+        })();
+
         window.onload = () => {
             SaveData.load();
             document.getElementById('bgm-toggle').innerText = AudioEngine.isMuted ? '🔇' : '🔊';
             refreshModeUI();
+            refreshScopeUI();
             updateStartProgress();
             UI.updateHUD();
             setupEvents();

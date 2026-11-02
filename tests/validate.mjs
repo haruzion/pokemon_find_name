@@ -188,5 +188,36 @@ check('バッジ獲得フロー（伝説10匹→3種、初プレイ→1種、再
   badgeFlow.third.length === 0 && badgeFlow.plays === 1,
   JSON.stringify(badgeFlow));
 
+// ===== 出題テーマ（scope） =====
+const poolTest = get(`(() => {
+  const results = {};
+  results.allIsNull = scopePool('all') === null;
+  results.invalidIsNull = scopePool('そんざいしない') === null;
+  results.legendPool = scopePool('legend') === LEGENDARY_LIST;
+  results.kantoLen = (scopePool('カントー') || []).length;
+  const rng = mulberry32(777);
+  state.pokedex = new Set();
+  const kanto = scopePool('カントー');
+  let ok = true;
+  for (let i = 0; i < 200; i++) { if (!kanto.includes(pickTarget(kanto, rng))) { ok = false; break; } }
+  results.pickStaysInPool = ok;
+  state.pokedex = new Set(kanto.slice(0, kanto.length - 1));
+  results.prefersUncollected = pickTarget(kanto, () => 0) === kanto[kanto.length - 1];
+  state.pokedex = new Set();
+  return results;
+})()`);
+check('テーマ別プール（ぜんぶ=null、でんせつ=伝説、カントー=118匹、選択はプール内のみ、未収集優先）',
+  poolTest.allIsNull && poolTest.invalidIsNull && poolTest.legendPool &&
+  poolTest.kantoLen === 118 && poolTest.pickStaysInPool && poolTest.prefersUncollected,
+  JSON.stringify(poolTest));
+
+const scopeSave = get(`(() => {
+  SaveData.saveScope('ガラル');
+  state.scope = 'all';
+  SaveData.load();
+  return state.scope;
+})()`);
+check('テーマが保存・復元される', scopeSave === 'ガラル', scopeSave);
+
 console.log(failures ? `\n${failures}件 失敗` : '\n全て合格');
 process.exit(failures ? 1 : 0);
