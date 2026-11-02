@@ -270,14 +270,22 @@
             <h1 class="text-5xl font-black text-amber-500 italic mb-2">POKÉ NAZO</h1>
             <p class="text-amber-400 font-bold mb-6">でんせつの ポケモンを あつめよう！</p>
         </div>
-        <div class="bg-white/80 border-4 border-sky-100 rounded-3xl px-6 py-4 mb-5 text-left text-sm font-bold text-slate-500 leading-relaxed w-full max-w-xs">
-            🎮 あそびかた<br>
-            ・もじを なぞって ポケモンの なまえを つくろう<br>
-            ・せいかいで +2びょう（でんせつは +5びょう）<br>
-            ・まちがえても OK！ つぎを さがそう<br>
-            ・ずかんは この たんまつに ほぞんされるよ
-        </div>
-        <p id="start-progress" class="text-sky-500 font-black mb-4 text-sm"></p>
+        <p id="start-progress" class="text-sky-500 font-black mb-2 text-sm"></p>
+        <p id="start-summary" class="text-slate-400 font-black text-sm mb-6"></p>
+        <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
+            スタート！
+        </button>
+        <button onclick="UI.openSettings()" class="mt-5 bg-white text-sky-500 font-black text-sm px-6 py-3 rounded-full border-4 border-sky-200 shadow">⚙️ せってい</button>
+    </div>
+
+    <div id="settings-screen" class="screen">
+        <div class="w-full max-w-md flex flex-col h-full p-4">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black text-sky-500 italic">せってい</h2>
+                <button onclick="UI.closeSettings()" class="bg-white border-2 border-slate-200 px-6 py-2 rounded-full text-slate-400 font-bold text-sm">とじる</button>
+            </div>
+            <div class="overflow-y-auto flex-1 pb-10 flex flex-col items-center w-full">
+                <p class="text-slate-400 font-black text-xs mb-2 self-start">むずかしさ</p>
         <div class="flex gap-2 mb-2 w-full max-w-xs" id="mode-select">
             <button type="button" data-mode="easy" class="mode-chip" onclick="selectMode('easy')">やさしい</button>
             <button type="button" data-mode="normal" class="mode-chip" onclick="selectMode('normal')">ふつう</button>
@@ -299,9 +307,17 @@
             <button type="button" data-scope="ガラル" class="scope-chip" onclick="selectScope('ガラル')">ガラル</button>
             <button type="button" data-scope="パルデア" class="scope-chip" onclick="selectScope('パルデア')">パルデア</button>
         </div>
-        <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
-            スタート！
-        </button>
+                <p class="text-slate-400 font-black text-xs mb-2 mt-2 self-start">あそびかた</p>
+        <div class="bg-white/80 border-4 border-sky-100 rounded-3xl px-6 py-4 mb-5 text-left text-sm font-bold text-slate-500 leading-relaxed w-full max-w-xs">
+            🎮 あそびかた<br>
+            ・もじを なぞって ポケモンの なまえを つくろう<br>
+            ・せいかいで +2びょう（でんせつは +5びょう）<br>
+            ・まちがえても OK！ つぎを さがそう<br>
+            ・ずかんは この たんまつに ほぞんされるよ
+        </div>
+            </div>
+        </div>
+    </div>
     </div>
 
     <div id="result-screen" class="screen">
@@ -755,6 +771,7 @@
             });
             const desc = document.getElementById('mode-desc');
             if (desc && state.settings) desc.innerText = state.settings.desc;
+            updateStartSummary();
         }
 
         // テーマ選択（スタート画面のチップ）
@@ -769,6 +786,15 @@
             document.querySelectorAll('#scope-select .scope-chip').forEach(chip => {
                 chip.classList.toggle('active', chip.dataset.scope === state.scope);
             });
+            updateStartSummary();
+        }
+
+        function updateStartSummary() {
+            const el = document.getElementById('start-summary');
+            if (!el) return;
+            const modeLabel = state.settings ? state.settings.label : 'ふつう';
+            const scopeLabel = state.scope === 'all' ? 'ぜんぶ' : state.scope === 'legend' ? 'でんせつ' : (state.scope + 'だけ');
+            el.innerText = modeLabel + ' ・ ' + scopeLabel;
         }
 
         function updateStartProgress() {
@@ -951,6 +977,13 @@
                     setTimeout(() => c.remove(), 2000);
                 }
             },
+            openSettings() {
+                this.switchScreen('settings-screen');
+            },
+            closeSettings() {
+                updateStartProgress();
+                this.switchScreen('start-overlay');
+            },
             openPokedex() {
                 const list = document.getElementById('pokedex-list');
                 list.innerHTML = '';
@@ -1068,12 +1101,6 @@
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
                 const delays = (state.settings && state.settings.hintDelays) || [5000, 10000, 15000];
-                if (!state.scope || state.scope === 'all' || state.scope === 'legend') {
-                    state.hintTimers.push(setTimeout(() => {
-                        const el = document.getElementById('scope-hint');
-                        if (el && state.targetWord) el.innerText = (REGION_OF[state.targetWord] || 'どこか') + 'の ポケモンが かくれている！';
-                    }, delays[0]));
-                }
                 state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), delays[0]));
                 state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), delays[1]));
                 state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), delays[2]));
