@@ -987,6 +987,7 @@
                     if (!this.bgmEl) {
                         this.bgmEl = new Audio();
                         this.bgmEl.loop = true;
+                        this.bgmEl.preservesPitch = true;
                         this.bgmEl.addEventListener('error', () => { this.bgmBroken = true; this.startSynthBGM(this.bgmScene || 'title'); }, true);
                     }
                     if (this.bgmEl.dataset.path !== path) {
@@ -994,6 +995,7 @@
                         this.bgmEl.src = url;
                     }
                     this.bgmEl.volume = this.isMuted ? 0 : 0.45;
+                    this.bgmEl.playbackRate = 1;
                     this.bgmWanted = true;
                     if (!document.hidden) { try { await this.bgmEl.play(); } catch (e) { /* 操作待ち */ } }
                 } catch (e) {
@@ -1086,6 +1088,11 @@
                     scoreEl.classList.add('score-pop');
                 }
                 document.body.classList.toggle('danger', !!(state.isRunning && state.settings && isFinite(state.settings.timeLimit) && state.timeLeft <= 10.5 && state.timeLeft > 0));
+                if (AudioEngine.bgmEl) {
+                    const urgent = !!(state.isRunning && state.settings && isFinite(state.settings.timeLimit) && state.timeLeft <= 15 && state.timeLeft > 0);
+                    const rate = urgent ? 1.3 : 1;
+                    if (AudioEngine.bgmEl.playbackRate !== rate) AudioEngine.bgmEl.playbackRate = rate;
+                }
                 document.getElementById('found-count').innerText = `${state.pokedex.size}/${POKEMON_LIST.length}`;
                 const limit = state.settings && isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 60;
                 document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / limit * 100)) + "%";
