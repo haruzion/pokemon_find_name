@@ -270,6 +270,39 @@
             75% { opacity: 1; }
             100% { opacity: 0; transform: translate(-50%, -60%) scale(1.05); }
         }
+        /* ===== タイトル画面（キービジュアル） ===== */
+        #start-overlay {
+            background: linear-gradient(180deg, #7dd3fc 0%, #bae6fd 45%, #dcf2e3 100%);
+            background-size: cover;
+            background-position: center top;
+            justify-content: flex-start;
+        }
+        #start-overlay.art-ready { background-image: var(--title-art); }
+        .title-inner { display: flex; flex-direction: column; width: 100%; max-width: 24rem; height: 100%; }
+        .title-logo { text-align: center; margin-top: 3vh; }
+        .title-eyebrow { font-size: 10px; letter-spacing: 0.42em; text-indent: 0.42em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.45); }
+        .title-jp { font-size: 56px; font-weight: 900; letter-spacing: 0.03em; line-height: 1.05; white-space: nowrap; color: #fff; text-shadow: 0 2px 0 #0284c7, 0 4px 0 rgba(2, 132, 199, 0.5), 0 10px 26px rgba(2, 90, 140, 0.45); }
+        .title-jp .bang { color: #fde047; }
+        .title-en { margin-top: 10px; font-size: 11px; letter-spacing: 0.55em; text-indent: 0.55em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.5); }
+        .title-tag { margin-top: 12px; font-size: 12.5px; letter-spacing: 0.14em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.55); }
+        .title-spacer { flex: 1; }
+        .title-card { background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 16px 20px; box-shadow: 0 14px 34px rgba(15, 47, 71, 0.18); }
+        .tc-row { display: flex; justify-content: space-between; align-items: baseline; }
+        .tc-label { font-size: 11px; letter-spacing: 0.22em; color: #7d93a5; font-weight: 700; }
+        .tc-num { font-size: 16px; font-weight: 900; color: #0f2f47; }
+        .tc-num small { font-size: 11px; color: #94a3b8; font-weight: 700; }
+        .tc-bar { margin-top: 9px; height: 6px; background: #e7eff5; border-radius: 3px; overflow: hidden; }
+        .tc-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #38bdf8, #0284c7); border-radius: 3px; transition: width 0.6s ease; }
+        .tc-badges { margin-top: 11px; display: flex; gap: 5px; font-size: 15px; }
+        .tc-badges .off { opacity: 0.25; filter: grayscale(1); }
+        .tc-best { font-size: 12.5px; font-weight: 900; color: #0f2f47; white-space: nowrap; }
+        .title-summary { margin-top: 13px; text-align: center; font-size: 12px; letter-spacing: 0.2em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.6); }
+        .title-start { margin-top: 14px; width: 100%; height: 62px; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: #fff; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 18px; font-size: 20px; font-weight: 900; letter-spacing: 0.35em; text-indent: 0.35em; box-shadow: 0 14px 28px rgba(2, 90, 140, 0.35); font-family: inherit; }
+        .title-start:active { transform: translateY(2px) scale(0.99); }
+        .title-subs { margin-top: 12px; display: flex; gap: 10px; }
+        .title-sub { flex: 1; height: 44px; background: rgba(255, 255, 255, 0.94); border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.15em; color: #475569; font-family: inherit; }
+        @keyframes titleIn { from { opacity: 0; transform: translateY(14px); } }
+        .anim-in { animation: titleIn 0.55s ease backwards; }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
@@ -325,17 +358,33 @@
 
     <!-- SCREENS -->
     <div id="start-overlay" class="screen active-screen">
-        <div class="text-center animate-bounce">
-            <div class="text-7xl mb-4">✨</div>
-            <h1 class="text-5xl font-black text-amber-500 italic mb-2">POKÉ NAZO</h1>
-            <p class="text-amber-400 font-bold mb-6">でんせつの ポケモンを あつめよう！</p>
+        <div class="title-inner">
+            <div class="title-logo anim-in" style="animation-delay:0.05s">
+                <div class="title-eyebrow">KATAKANA WORD SEARCH</div>
+                <h1 class="title-jp">ポケなぞ<span class="bang">！</span></h1>
+                <div class="title-en">POKÉ NAZO</div>
+                <p class="title-tag">でんせつの ポケモンを あつめよう！</p>
+            </div>
+            <div class="title-spacer"></div>
+            <div class="title-card anim-in" style="animation-delay:0.2s">
+                <div class="tc-row">
+                    <span class="tc-label">ずかん</span>
+                    <span class="tc-num"><span id="dex-count">0</span> <small>/ <span id="dex-total">795</span> ・ <span id="dex-pct">0</span>%</small></span>
+                </div>
+                <div class="tc-bar"><i id="dex-bar-fill"></i></div>
+                <div class="tc-row" style="margin-top:11px">
+                    <span class="tc-label">ベスト</span>
+                    <span id="start-progress" class="tc-best"></span>
+                </div>
+                <div id="title-badges" class="tc-badges"></div>
+            </div>
+            <p id="start-summary" class="title-summary anim-in" style="animation-delay:0.3s"></p>
+            <button onclick="Game.init()" class="title-start anim-in" style="animation-delay:0.4s">スタート</button>
+            <div class="title-subs anim-in" style="animation-delay:0.5s">
+                <button onclick="UI.openSettings()" class="title-sub">⚙ せってい</button>
+                <button onclick="UI.openPokedex()" class="title-sub">📖 ずかん</button>
+            </div>
         </div>
-        <p id="start-progress" class="text-sky-500 font-black mb-2 text-sm"></p>
-        <p id="start-summary" class="text-slate-400 font-black text-sm mb-6"></p>
-        <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
-            スタート！
-        </button>
-        <button onclick="UI.openSettings()" class="mt-5 bg-white text-sky-500 font-black text-sm px-6 py-3 rounded-full border-4 border-sky-200 shadow">⚙️ せってい</button>
     </div>
 
     <div id="settings-screen" class="screen">
@@ -869,8 +918,24 @@
         }
 
         function updateStartProgress() {
+            const total = POKEMON_LIST.length;
+            const n = state.pokedex.size;
+            const dc = document.getElementById('dex-count');
+            if (dc) dc.innerText = n;
+            const dt = document.getElementById('dex-total');
+            if (dt) dt.innerText = total;
+            const dp = document.getElementById('dex-pct');
+            if (dp) dp.innerText = Math.floor(n / total * 100);
+            const bar = document.getElementById('dex-bar-fill');
+            if (bar) bar.style.width = (n / total * 100) + '%';
+            const badgesEl = document.getElementById('title-badges');
+            if (badgesEl) {
+                badgesEl.innerHTML = BADGES.map(function (b) {
+                    return '<span class="' + (SaveData.hasBadge(b.id) ? '' : 'off') + '">' + b.icon + '</span>';
+                }).join('');
+            }
             const el = document.getElementById('start-progress');
-            if (el) el.innerText = `ずかん ${state.pokedex.size} / ${POKEMON_LIST.length}　・　ベスト（${state.settings ? state.settings.label : 'ふつう'}）${SaveData.bestFor(state.mode)}てん`;
+            if (el) el.innerText = `（${state.settings ? state.settings.label : 'ふつう'}）${SaveData.bestFor(state.mode)}てん`;
         }
 
         const AudioEngine = {
@@ -1546,6 +1611,31 @@
             if (oc.includes('Game.init')) return;
             AudioEngine.playTap();
         });
+
+        // タイトル画面のキービジュアル（分割Base64から復元、失敗時はグラデーションのまま）
+        (async () => {
+            try {
+                let b64 = '';
+                const first = await fetch('img/title_art.jpg.b64');
+                if (first.ok) {
+                    b64 = (await first.text()).trim();
+                } else {
+                    for (let i = 1; i <= 6; i++) {
+                        const r = await fetch('img/title_art.jpg.b64.p' + i);
+                        if (!r.ok) break;
+                        b64 += (await r.text()).trim();
+                    }
+                }
+                if (!b64) return;
+                const bin = atob(b64);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                const url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
+                const ov = document.getElementById('start-overlay');
+                ov.style.setProperty('--title-art', 'url(' + url + ')');
+                ov.classList.add('art-ready');
+            } catch (e) { /* グラデーション背景のまま */ }
+        })();
 
         window.onload = () => {
             SaveData.load();
