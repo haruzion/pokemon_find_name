@@ -277,14 +277,17 @@
             background-position: center top;
             justify-content: flex-start;
         }
-        #start-overlay.art-ready { background-image: var(--title-art); }
+        #title-art-bg { position: absolute; inset: 0; background-size: cover; background-position: center top; opacity: 0; transition: opacity 0.9s ease; pointer-events: none; }
+        #title-art-bg.on { opacity: 1; }
+        .title-inner { position: relative; z-index: 1; }
+        .title-rule { width: 40px; height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.9); margin: 11px auto 0; box-shadow: 0 1px 6px rgba(2, 90, 140, 0.35); }
         .title-inner { display: flex; flex-direction: column; width: 100%; max-width: 24rem; height: 100%; }
-        .title-logo { text-align: center; margin-top: 3vh; }
+        .title-logo { text-align: center; margin-top: 4.5vh; }
         .title-eyebrow { font-size: 10px; letter-spacing: 0.42em; text-indent: 0.42em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.45); }
-        .title-jp { font-size: 56px; font-weight: 900; letter-spacing: 0.03em; line-height: 1.05; white-space: nowrap; color: #fff; text-shadow: 0 2px 0 #0284c7, 0 4px 0 rgba(2, 132, 199, 0.5), 0 10px 26px rgba(2, 90, 140, 0.45); }
+        .title-jp { font-size: 60px; font-weight: 900; letter-spacing: 0.03em; line-height: 1.05; white-space: nowrap; color: #fff; text-shadow: 0 2px 0 #0284c7, 0 4px 0 rgba(2, 132, 199, 0.5), 0 10px 26px rgba(2, 90, 140, 0.45); }
         .title-jp .bang { color: #fde047; }
-        .title-en { margin-top: 10px; font-size: 11px; letter-spacing: 0.55em; text-indent: 0.55em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.5); }
-        .title-tag { margin-top: 12px; font-size: 12.5px; letter-spacing: 0.14em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.55); }
+        .title-en { margin-top: 7px; font-size: 11px; letter-spacing: 0.55em; text-indent: 0.55em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.5); }
+        .title-tag { margin-top: 10px; font-size: 12.5px; letter-spacing: 0.14em; font-weight: 700; color: #fff; text-shadow: 0 1px 8px rgba(2, 90, 140, 0.55); }
         .title-spacer { flex: 1; }
         .title-card { background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 16px 20px; box-shadow: 0 14px 34px rgba(15, 47, 71, 0.18); }
         .tc-row { display: flex; justify-content: space-between; align-items: baseline; }
@@ -358,11 +361,13 @@
 
     <!-- SCREENS -->
     <div id="start-overlay" class="screen active-screen">
+        <div id="title-art-bg"></div>
         <div class="title-inner">
             <div class="title-logo anim-in" style="animation-delay:0.05s">
                 <div class="title-eyebrow">KATAKANA WORD SEARCH</div>
                 <h1 class="title-jp">ポケなぞ<span class="bang">！</span></h1>
                 <div class="title-en">POKÉ NAZO</div>
+                <div class="title-rule"></div>
                 <p class="title-tag">でんせつの ポケモンを あつめよう！</p>
             </div>
             <div class="title-spacer"></div>
@@ -967,11 +972,11 @@
                 if (res.ok) {
                     b64 = (await res.text()).trim();
                 } else {
-                    // 分割ファイル（.p1, .p2, ...）を連結して復元する
-                    for (let i = 1; i <= 12; i++) {
-                        const r = await fetch(path + '.p' + i);
-                        if (!r.ok) break;
-                        b64 += (await r.text()).trim();
+                    // 分割ファイル（.p1〜.p6）を並列で取って連結する
+                    const rs = await Promise.all([1, 2, 3, 4, 5, 6].map(i =>
+                        fetch(path + '.p' + i).catch(() => null)));
+                    for (const r of rs) {
+                        if (r && r.ok) b64 += (await r.text()).trim();
                     }
                     if (!b64) throw new Error('audio load failed: ' + path);
                 }
@@ -1616,14 +1621,14 @@
         (async () => {
             try {
                 let b64 = '';
-                const first = await fetch('img/title_art.jpg.b64');
-                if (first.ok) {
+                const first = await fetch('img/title_art.jpg.b64').catch(() => null);
+                if (first && first.ok) {
                     b64 = (await first.text()).trim();
                 } else {
-                    for (let i = 1; i <= 6; i++) {
-                        const r = await fetch('img/title_art.jpg.b64.p' + i);
-                        if (!r.ok) break;
-                        b64 += (await r.text()).trim();
+                    const rs = await Promise.all([1, 2, 3, 4, 5, 6].map(i =>
+                        fetch('img/title_art.jpg.b64.p' + i).catch(() => null)));
+                    for (const r of rs) {
+                        if (r && r.ok) b64 += (await r.text()).trim();
                     }
                 }
                 if (!b64) return;
@@ -1631,13 +1636,24 @@
                 const bytes = new Uint8Array(bin.length);
                 for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
                 const url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
-                const ov = document.getElementById('start-overlay');
-                ov.style.setProperty('--title-art', 'url(' + url + ')');
-                ov.classList.add('art-ready');
+                const bg = document.getElementById('title-art-bg');
+                bg.style.backgroundImage = 'url(' + url + ')';
+                bg.classList.add('on');
+                document.getElementById('start-overlay').classList.add('art-ready');
             } catch (e) { /* グラデーション背景のまま */ }
         })();
 
         window.onload = () => {
+            // 音楽ファイルを先読みしておき、最初のタップで即座に流れるようにする
+            const bgmFiles = AudioEngine.BGM_FILES || {};
+            if (bgmFiles.title) AudioEngine.fetchAudioURL(bgmFiles.title).catch(() => {});
+            Object.values(AudioEngine.SE_FILES || {}).forEach(p =>
+                AudioEngine.fetchAudioURL(p).catch(() => {}));
+            setTimeout(() => { if (bgmFiles.game) AudioEngine.fetchAudioURL(bgmFiles.game).catch(() => {}); }, 1500);
+            setTimeout(() => {
+                if (bgmFiles.relax) AudioEngine.fetchAudioURL(bgmFiles.relax).catch(() => {});
+                if (bgmFiles.fever) AudioEngine.fetchAudioURL(bgmFiles.fever).catch(() => {});
+            }, 3500);
             SaveData.load();
             document.getElementById('bgm-toggle').innerText = AudioEngine.isMuted ? '🔇' : '🔊';
             refreshModeUI();
