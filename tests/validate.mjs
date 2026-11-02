@@ -82,24 +82,111 @@ const boardTest = get(`(() => {
 })()`);
 check('盤面生成 全件×30回', boardTest.length === 0, boardTest.slice(0, 5).join(','));
 
-// ===== 保存の往復 =====
+// ===== モード定義（Phase 1） =====
+const modes = get('MODES');
+check('モード定義 4種', ['easy', 'normal', 'hard', 'relax'].every(k => !!modes[k]),
+  Object.keys(modes).join(','));
+check('モード項目がそろっている', Object.values(modes).every(md =>
+  md.label && 'timeLimit' in md && typeof md.bonus === 'number' &&
+  typeof md.legendBonus === 'number' && Array.isArray(md.hintDelays) &&
+  md.hintDelays.length === 3 && typeof md.scoreMul === 'number' && md.desc));
+check('のんびりは時間無制限', modes.relax.timeLimit === Infinity);
+check('むずかしいはスコア2倍', modes.hard.scoreMul === 2);
+
+// ===== 保存の往復（モード別ベスト） =====
 const saveTest = get(`(() => {
   state.pokedex = new Set(['ピカチュウ', 'ミュウ']);
+  state.mode = 'normal'; state.settings = MODES.normal;
   SaveData.saveBest(300);
   SaveData.saveMuted(true);
+  SaveData.saveMode('hard');
   SaveData.save();
   state.pokedex = new Set();
-  SaveData.data.best = 0;
+  SaveData.data.bests = {};
   SaveData.load();
   return {
     dex: Array.from(state.pokedex).sort().join(','),
-    best: SaveData.data.best,
+    bestNormal: SaveData.bestFor('normal'),
     muted: AudioEngine.isMuted,
+    mode: state.mode,
   };
 })()`);
-check('保存の往復（ずかん・ベスト・ミュート）',
-  saveTest.dex === 'ピカチュウ,ミュウ' && saveTest.best === 300 && saveTest.muted === true,
+check('保存の往復（ずかん・モード別ベスト・ミュート・モード）',
+  saveTest.dex === 'ピカチュウ,ミュウ' && saveTest.bestNormal === 300 &&
+  saveTest.muted === true && saveTest.mode === 'hard',
   JSON.stringify(saveTest));
+
+// ===== モード別ベストの分離 =====
+const sepTest = get(`(() => {
+  state.mode = 'easy'; SaveData.saveBest(111);
+  state.mode = 'hard'; SaveData.saveBest(50);
+  return {
+    easy: SaveData.bestFor('easy'),
+    normal: SaveData.bestFor('normal'),
+    hard: SaveData.bestFor('hard'),
+    relax: SaveData.bestFor('relax'),
+  };
+})()`);
+check('ベストはモードごとに別々に残る',
+  sepTest.easy === 111 && sepTest.normal === 300 && sepTest.hard === 50 && sepTest.relax === 0,
+  JSON.stringify(sepTest));
+
+// ===== 旧形式セーブ（best単体）からの移行 =====
+const migTest = get(`(() => {
+  localStorage.setItem(SaveData.KEY, JSON.stringify({ pokedex: ['ミュウ'], best: 250, muted: false }));
+  SaveData.data = { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal' };
+  state.pokedex = new Set();
+  SaveData.load();
+  return {
+    bestNormal: SaveData.bestFor('normal'),
+    mode: state.mode,
+    dex: Array.from(state.pokedex).join(','),
+  };
+})()`);
+check('旧セーブのベストはふつうのベストへ移行',
+  migTest.bestNormal === 250 && migTest.mode === 'normal' && migTest.dex === 'ミュウ',
+  JSON.stringify(migTest));
+
+// ===== 地方データ（Phase 2） =====
+const regions = get('PokemonData.REGIONS');
+const regionOrder = get('REGION_ORDER');
+const regionOf = get('REGION_OF');
+const allRegionNames = regionOrder.flatMap(r => regions[r] || []);
+check('地方は10グループ', regionOrder.length === 10, regionOrder.join(','));
+check('地方の合計が全収録数と一致', allRegionNames.length === list.length,
+  `regions=${allRegionNames.length} list=${list.length}`);
+check('地方に重複なし・漏れなし',
+  new Set(allRegionNames).size === allRegionNames.length &&
+  list.every(n => allRegionNames.includes(n)));
+const expectedCounts = { 'カントー': 118, 'ジョウト': 80, 'ホウエン': 120, 'シンオウ': 97, 'イッシュ': 152, 'カロス': 66, 'アローラ': 71, 'ガラル': 53, 'パルデア': 35, 'そのほか': 3 };
+check('地方別の件数', regionOrder.every(r => (regions[r] || []).length === expectedCounts[r]),
+  regionOrder.map(r => `${r}:${(regions[r] || []).length}`).join(' '));
+check('カプ系はアローラ', ['カプコケコ', 'カプテテフ', 'カプブルル', 'カプレヒレ'].every(n => regionOf[n] === 'アローラ'));
+check('そのほかは由来不明の3匹だけ',
+  JSON.stringify(regions['そのほか']) === JSON.stringify(['モコココ', 'パイン', 'ドランチ']),
+  (regions['そのほか'] || []).join(','));
+check('REGION_OFが全件をカバー', list.every(n => regionOf[n]));
+
+// ===== バッジ（Phase 2） =====
+const badges = get('BADGES');
+check('バッジ定義10種', badges.length === 10 && new Set(badges.map(b => b.id)).size === 10,
+  badges.map(b => b.id).join(','));
+check('バッジに判定関数がある', badges.every(b => typeof b.test === 'function' && b.name && b.desc));
+const badgeFlow = get(`(() => {
+  SaveData.data = { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0 };
+  state.pokedex = new Set(POKEMON_LIST.slice(0, 10)); // 先頭10匹は全て伝説
+  const first = SaveData.awardBadges().map(b => b.id);
+  SaveData.addPlay();
+  const second = SaveData.awardBadges().map(b => b.id);
+  const third = SaveData.awardBadges().map(b => b.id);
+  return { first, second, third, plays: SaveData.data.plays };
+})()`);
+check('バッジ獲得フロー（伝説10匹→3種、初プレイ→1種、再判定→0種）',
+  badgeFlow.first.includes('dex-10') && badgeFlow.first.includes('first-legend') &&
+  badgeFlow.first.includes('legend-10') && badgeFlow.first.length === 3 &&
+  JSON.stringify(badgeFlow.second) === JSON.stringify(['first-play']) &&
+  badgeFlow.third.length === 0 && badgeFlow.plays === 1,
+  JSON.stringify(badgeFlow));
 
 console.log(failures ? `\n${failures}件 失敗` : '\n全て合格');
 process.exit(failures ? 1 : 0);

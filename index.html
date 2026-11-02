@@ -196,6 +196,18 @@
             padding: 4px 12px;
             box-shadow: 0 4px 0 #d97706;
         }
+        .mode-chip {
+            flex: 1; padding: 10px 0; border-radius: 999px;
+            border: 3px solid #bae6fd; background: white;
+            color: #0284c7; font-weight: 900; font-size: 13px; cursor: pointer;
+        }
+        .mode-chip.active { background: #38bdf8; color: white; border-color: #0284c7; }
+        @keyframes newPop {
+            0% { transform: scale(0.6); }
+            55% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+        .new-pop { animation: newPop 0.45s ease; box-shadow: 0 0 24px rgba(245, 158, 11, 0.55); }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
@@ -210,6 +222,9 @@
                 <button onclick="UI.openPokedex()" class="bubble-btn px-4 py-2 text-sky-500 font-black text-xs">
                     📕 ずかん
                 </button>
+                <button id="quit-btn" onclick="Game.quit()" class="bubble-btn px-4 py-2 text-rose-500 font-black text-xs" style="display:none">
+                    ⏹ おわる
+                </button>
             </div>
             <div class="flex flex-col items-end gap-1">
                 <div class="hud-stat flex items-center gap-2">
@@ -222,7 +237,7 @@
                 </div>
             </div>
         </div>
-        <div class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
+        <div id="timer-wrap" class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
             <div id="timer-bar" class="h-full bg-rose-400 transition-all duration-100" style="width: 100%"></div>
         </div>
     </div>
@@ -255,14 +270,21 @@
             ・まちがえても OK！ つぎを さがそう<br>
             ・ずかんは この たんまつに ほぞんされるよ
         </div>
-        <p id="start-progress" class="text-sky-500 font-black mb-6 text-sm"></p>
+        <p id="start-progress" class="text-sky-500 font-black mb-4 text-sm"></p>
+        <div class="flex gap-2 mb-2 w-full max-w-xs" id="mode-select">
+            <button type="button" data-mode="easy" class="mode-chip" onclick="selectMode('easy')">やさしい</button>
+            <button type="button" data-mode="normal" class="mode-chip" onclick="selectMode('normal')">ふつう</button>
+            <button type="button" data-mode="hard" class="mode-chip" onclick="selectMode('hard')">むずかしい</button>
+            <button type="button" data-mode="relax" class="mode-chip" onclick="selectMode('relax')">のんびり</button>
+        </div>
+        <p id="mode-desc" class="text-slate-400 font-bold text-xs mb-6"></p>
         <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-2xl font-black py-6 rounded-[2.5rem] shadow-[0_10px_0_#0284c7] active:translate-y-2 transition-all">
             スタート！
         </button>
     </div>
 
     <div id="result-screen" class="screen">
-        <h2 class="text-4xl font-black text-amber-500 mb-6 italic">TIME UP!</h2>
+        <h2 id="result-title" class="text-4xl font-black text-amber-500 mb-6 italic">TIME UP!</h2>
         <div class="bg-white rounded-[3rem] p-8 mb-8 border-8 border-amber-100 shadow-xl w-full max-w-xs text-center flex flex-col gap-4">
             <div>
                 <div class="text-xs font-bold text-slate-300 uppercase">SCORE</div>
@@ -273,12 +295,14 @@
                 <div id="final-pokedex" class="text-2xl font-black text-amber-500">0 / 0</div>
             </div>
             <div class="border-t border-slate-100 pt-4">
-                <div class="text-xs font-bold text-slate-300 uppercase">BEST</div>
+                <div id="final-best-label" class="text-xs font-bold text-slate-300 uppercase">BEST</div>
                 <div id="final-best" class="text-2xl font-black text-amber-500">0</div>
                 <div id="new-record" class="text-rose-400 font-black text-sm mt-1" style="display:none">🎉 しんきろく！</div>
+                <div id="new-badges" class="text-amber-500 font-black text-sm mt-2" style="display:none"></div>
             </div>
         </div>
         <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-xl font-black py-5 rounded-3xl shadow-[0_8px_0_#0284c7] mb-4">もういっかい！</button>
+        <button onclick="Game.toTitle()" class="w-full max-w-xs bg-white text-sky-500 text-lg font-black py-4 rounded-3xl shadow-[0_6px_0_#bae6fd] border-4 border-sky-200 mb-4">タイトルにもどる</button>
         <button onclick="UI.openPokedex()" class="text-sky-400 font-bold">ずかんを みる</button>
     </div>
 
@@ -291,7 +315,8 @@
                 </div>
                 <button onclick="UI.closePokedex()" class="bg-white border-2 border-slate-200 px-6 py-2 rounded-full text-slate-400 font-bold text-sm">とじる</button>
             </div>
-            <div id="pokedex-list" class="grid grid-cols-3 gap-3 overflow-y-auto pb-10 flex-1 px-1"></div>
+            <div id="badge-shelf" class="mb-2"></div>
+            <div id="pokedex-list" class="overflow-y-auto pb-10 flex-1 px-1"></div>
         </div>
     </div>
 
@@ -314,6 +339,120 @@
                 "レシラム", "ゼクロム", "キュレム", "ゼルネアス", "イベルタル", "ソルガレオ", "ルナアーラ", "ネクロズマ",
                 "カプコケコ", "カプテテフ", "カプブルル", "カプレヒレ", "レジエレキ", "レジドラゴ"
             ],
+            REGIONS: {
+                'カントー': [
+                    "ミュウツー", "ミュウ", "ピカチュウ", "イーブイ", "ロコン", "プリン", "ゲンガー", "メタモン", "コダック",
+                    "カビゴン", "カイリュー", "リザードン", "フシギダネ", "ゼニガメ", "ガーディ", "ウインディ", "ヤドン", "ラプラス",
+                    "ピジョット", "フリーザー", "サンダー", "ファイヤー", "ラッキー", "スターミー", "フシギバナ", "オニドリル", "パウワウ",
+                    "ニドキング", "ニャース", "ギャラドス", "シャワーズ", "サンダース", "ブースター", "ストライク", "ユンゲラー", "フーディン",
+                    "ケーシィ", "ベトベター", "ベトベトン", "ドガース", "マタドガス", "ガラガラ", "カラカラ", "サイドン", "サイホーン",
+                    "ニョロボン", "ニョロゾ", "ニョロモ", "スピアー", "フシギソウ", "カメール", "リザード", "ピジョン", "オニスズメ",
+                    "アーボ", "アーボック", "サンド", "サンドパン", "ピッピ", "ピクシー", "キュウコン", "プクリン", "ズバット",
+                    "ゴルバット", "ナゾノクサ", "クサイハナ", "ラフレシア", "パラス", "パラセクト", "コンパン", "モルフォン", "ディグダ",
+                    "ダグトリオ", "ペルシアン", "ゴルダック", "マンキー", "オコリザル", "ポニータ", "ギャロップ", "ドードー", "ドードリオ",
+                    "ジュゴン", "シェルダー", "パルシェン", "ゴース", "ゴースト", "スリープ", "スリーパー", "クラブ", "キングラー",
+                    "ビリリダマ", "マルマイン", "タマタマ", "ナッシー", "サワムラー", "エビワラー", "ベロリンガ", "モンジャラ", "ガルーラ",
+                    "タッツー", "シードラ", "トサキント", "アズマオウ", "ヒトデマン", "バリヤード", "ルージュラ", "エレブー", "ブーバー",
+                    "カイロス", "ケンタロス", "ポリゴン", "オムナイト", "オムスター", "カブト", "カブトプス", "プテラ", "ミニリュウ",
+                    "ハクリュー"
+                ],
+                'ジョウト': [
+                    "ルギア", "ホウオウ", "ライコウ", "エンテイ", "スイクン", "トゲピー", "ハッサム", "チコリータ", "ヌオー",
+                    "チョンチー", "ハピナス", "アリアドス", "ウリムー", "ソーナンス", "ブラッキー", "エーフィ", "デンリュウ", "ドンファン",
+                    "ネイティオ", "ネイティ", "ワタッコ", "ポポッコ", "ハネッコ", "キマワリ", "ヒマナッツ", "ウソッキー", "マリル",
+                    "マリルリ", "グランブル", "ブルー", "エアームド", "ニューラ", "デリバード", "マンタイン", "テッポウオ", "オクタン",
+                    "ベイリーフ", "メガニウム", "ヒノアラシ", "マグマラシ", "バクフーン", "ワニノコ", "アリゲイツ", "オーダイル", "ヨルノズク",
+                    "ホーホー", "レディバ", "レディアン", "イトマル", "クロバット", "ランターン", "ピチュー", "ピィ", "ププリン",
+                    "トゲチック", "ヤンヤンマ", "ウパー", "ヤミカラス", "キリンリキ", "ノコッチ", "グライガー", "ハガネール", "ハリーセン",
+                    "ツボツボ", "ヘラクロス", "ヒメグマ", "リングマ", "マグカルゴ", "イノムー", "サニーゴ", "ドーブル", "バルキー",
+                    "カポエラー", "ムチュール", "エレキッド", "ブビィ", "ミルタンク", "ヨーギラス", "サナギラス", "バンギラス"
+                ],
+                'ホウエン': [
+                    "ジラーチ", "レジロック", "レジアイス", "レジスチル", "ラティアス", "ラティオス", "カイオーガ", "グラードン", "レックウザ",
+                    "サーナイト", "アチャモ", "ミズゴロウ", "ペリッパー", "ボーマンダ", "チルタリス", "ナマケロ", "サボネア", "タツベイ",
+                    "ヤミラミ", "メタグロス", "ミロカロス", "ラグラージ", "バシャーモ", "ジュカイン", "ラルトス", "キルリア", "マッスグマ",
+                    "ジグザグマ", "コノハナ", "ダーテング", "キノガッサ", "ネンドール", "ブーピッグ", "バネブー", "ルンパッパ", "ハスボー",
+                    "スバメ", "オオスバメ", "ルナトーン", "ソルロック", "チャーレム", "ノズパス", "ソーナノ", "キモリ", "ジュプトル",
+                    "ワカシャモ", "ヌマクロー", "ポチエナ", "グラエナ", "カラサリス", "マユルド", "アゲハント", "ドクケイル", "ハスブレロ",
+                    "タネボー", "キャモメ", "アメタマ", "アメモース", "キノココ", "ヤルキモノ", "ケッキング", "ツチニン", "テッカニン",
+                    "ヌケニン", "ゴニョニョ", "ドゴーム", "バクオング", "マクノシタ", "ハリテヤマ", "ルリリ", "エネコ", "エネコロロ",
+                    "ココドラ", "コドラ", "ボスゴドラ", "アサナン", "ラクライ", "ライボルト", "プラスル", "マイナン", "バルビート",
+                    "イルミーゼ", "ロゼリア", "ゴクリン", "マルノーム", "ノクタス", "チルット", "ザングース", "ハブネーク", "ドジョッチ",
+                    "ナマズン", "ヘイガニ", "シザリガー", "ヤジロン", "リリーラ", "ユレイドル", "アノプス", "アーマルド", "ポワルン",
+                    "カクレオン", "カゲボウズ", "ジュペッタ", "ヨマワル", "サマヨール", "トロピウス", "チリーン", "アブソル", "ユキワラシ",
+                    "オニゴーリ", "タマザラシ", "トドグラー", "トドゼルガ", "パールル", "ハンテール", "サクラビス", "ジーランス", "ラブカス",
+                    "コモルー", "ダンバル", "メタング"
+                ],
+                'シンオウ': [
+                    "ダークライ", "ディアルガ", "パルキア", "ギラティナ", "クレセリア", "ルカリオ", "ポッチャマ", "ガブリアス", "スボミー",
+                    "エンペルト", "ミミロップ", "コリンク", "レントラー", "フカマル", "グレイシア", "リーフィア", "パチリス", "ムックル",
+                    "ペラップ", "ドンカラス", "ムクホーク", "ムクバード", "グライオン", "マニューラ", "ユキメノコ", "ダイノーズ", "ビークイン",
+                    "ミツハニー", "ドクロッグ", "グレッグル", "トリトドン", "カラナクシ", "ドータクン", "ドーミラー", "ウソハチ", "タマンタ",
+                    "トゲキッス", "ナエトル", "ハヤシガメ", "ドダイトス", "ヒコザル", "モウカザル", "ゴウカザル", "ポッタイシ", "ビッパ",
+                    "ビーダル", "コロボーシ", "コロトック", "ルクシオ", "ロズレイド", "ズガイドス", "ラムパルド", "タテトプス", "トリデプス",
+                    "ミノムッチ", "ミノマダム", "ガーメイル", "ブイゼル", "フローゼル", "チェリンボ", "チェリム", "エテボース", "フワンテ",
+                    "フワライド", "ニャルマー", "ブニャット", "リーシャン", "スカンプー", "スカタンク", "ピンプク", "ミカルゲ", "ガバイト",
+                    "ヒポポタス", "カバルドン", "マスキッパ", "ケイコウオ", "ネオラント", "ユキカブリ", "ユキノオー", "ベロベルト", "ドサイドン",
+                    "モジャンボ", "エレキブル", "ブーバーン", "メガヤンマ", "マンムー", "エルレイド", "ヨノワール", "ロトム", "ユクシー",
+                    "エムリット", "アグノム", "ヒードラン", "レジギガス", "フィオネ", "マナフィ", "シェイミ"
+                ],
+                'イッシュ': [
+                    "レシラム", "ゼクロム", "キュレム", "ゾロア", "ナットレイ", "バイバニラ", "ムシャーナ", "クイタラン", "ゴルーグ",
+                    "テラキオン", "コバルオン", "ビリジオン", "ケルディオ", "メロエッタ", "ゲノセクト", "ムーランド", "エンブオー", "ダイケンキ",
+                    "ツタージャ", "ジャノビー", "ジャローダ", "ポカブ", "チャオブー", "ミジュマル", "フタチマル", "ミネズミ", "ミルホッグ",
+                    "ヨーテリー", "ハーデリア", "チョロネコ", "レパルダス", "ヤナップ", "ヤナッキー", "バオップ", "バオッキー", "ヒヤップ",
+                    "ヒヤッキー", "ムンナ", "マメパト", "ハトーボー", "ケンホロウ", "シママ", "ゼブライカ", "ダンゴロ", "ガントル",
+                    "ギガイアス", "コロモリ", "ココロモリ", "モグリュー", "ドリュウズ", "タブンネ", "ドッコラー", "ドテッコツ", "ローブシン",
+                    "オタマロ", "ガマガル", "ガマゲロゲ", "ナゲキ", "ダゲキ", "クルミル", "クルマユ", "ハハコモリ", "ホイーガ",
+                    "ペンドラー", "モンメン", "エルフーン", "チュリネ", "ドレディア", "バスラオ", "ワルビル", "ワルビアル", "ダルマッカ",
+                    "ヒヒダルマ", "マラカッチ", "イシズマイ", "イワパレス", "ズルッグ", "ズルズキン", "シンボラー", "デスマス", "デスカーン",
+                    "プロトーガ", "アバゴーラ", "アーケン", "アーケオス", "ヤブクロン", "ダストダス", "ゾロアーク", "チラーミィ", "チラチーノ",
+                    "ゴチム", "ゴチミル", "ゴチルゼル", "ユニラン", "ダブラン", "ランクルス", "コアルヒー", "スワンナ", "バニプッチ",
+                    "バニリッチ", "シキジカ", "メブキジカ", "エモンガ", "カブルモ", "シュバルゴ", "タマゲタケ", "モロバレル", "プルリル",
+                    "ブルンゲル", "ママンボウ", "バチュル", "デンチュラ", "テッシード", "ギアル", "ギギアル", "ギギギアル", "シビシラス",
+                    "シビビール", "シビルドン", "リグレー", "オーベム", "ヒトモシ", "ランプラー", "シャンデラ", "キバゴ", "オノンド",
+                    "オノノクス", "クマシュン", "ツンベアー", "フリージオ", "チョボマキ", "アギルダー", "マッギョ", "コジョフー", "コジョンド",
+                    "クリムガン", "ゴビット", "コマタナ", "キリキザン", "バッフロン", "ワシボン", "ウォーグル", "バルジーナ", "アイアント",
+                    "モノズ", "ジヘッド", "サザンドラ", "メラルバ", "ウルガモス", "トルネロス", "ボルトロス", "ランドロス"
+                ],
+                'カロス': [
+                    "フーパ", "ゼルネアス", "イベルタル", "ゲッコウガ", "マーイーカ", "フラベベ", "エレザード", "オンバーン", "パンプジン",
+                    "ハリマロン", "エリキテル", "デデンネ", "ニンフィア", "ジガルデ", "ハリボーグ", "ブリガロン", "フォッコ", "テールナー",
+                    "ケロマツ", "ゲコガシラ", "ホルビー", "ホルード", "ヤヤコマ", "ヒノヤコマ", "コフキムシ", "コフーライ", "ビビヨン",
+                    "シシコ", "カエンジシ", "フラエッテ", "メェークル", "ゴーゴート", "ヤンチャム", "ゴロンダ", "トリミアン", "ニャスパー",
+                    "ヒトツキ", "ニダンギル", "ギルガルド", "シュシュプ", "フレフワン", "ペロッパフ", "ペロリーム", "カラマネロ", "カメテテ",
+                    "ガメノデス", "クズモー", "ドラミドロ", "ウデッポウ", "ブロスター", "チゴラス", "ガチゴラス", "アマルス", "アマルルガ",
+                    "ルチャブル", "メレシー", "ヌメラ", "ヌメイル", "ヌメルゴン", "クレッフィ", "ボクレー", "オーロット", "バケッチャ",
+                    "カチコール", "クレベース", "オンバット"
+                ],
+                'アローラ': [
+                    "ソルガレオ", "ルナアーラ", "ネクロズマ", "カプコケコ", "カプテテフ", "カプブルル", "カプレヒレ", "ミミッキュ", "モクロー",
+                    "ニャビー", "アシマリ", "テッカグヤ", "ネッコアラ", "ベベノム", "トゲデマル", "アマージョ", "アブリボン", "アシレーヌ",
+                    "フクスロー", "ニャヒート", "ガオガエン", "オシャマリ", "ツツケラ", "ケララッパ", "ドデカバシ", "ヤングース", "デカグース",
+                    "アゴジムシ", "デンヂムシ", "クワガノン", "マケンカニ", "ケケンカニ", "オドリドリ", "アブリー", "イワンコ", "ルガルガン",
+                    "ヨワシ", "シロデスナ", "ヒドイデ", "ドヒドイデ", "ドロバンコ", "バンバドロ", "シズクモ", "カリキリ", "ラランテス",
+                    "ネマシュ", "マシェード", "ヤトウモリ", "ヌイコグマ", "キテルグマ", "アマカジ", "アママイコ", "キュワワー", "コソクムシ",
+                    "スナバァ", "ナマコブシ", "バクガメス", "ハギギシリ", "ジジーロン", "ジャラコ", "ジャランゴ", "コスモッグ", "コスモウム",
+                    "ウツロイド", "カミツルギ", "マギアナ", "アーゴヨン", "ズガドーン", "ゼラオラ", "メルタン", "メルメタル"
+                ],
+                'ガラル': [
+                    "ザシアン", "ザマゼンタ", "レジエレキ", "レジドラゴ", "ワンパチ", "ドラパルト", "ウッウ", "モスノウ", "ウーラオス",
+                    "ウールー", "バチンキー", "ラビフット", "ジメレオン", "ホシガリス", "ヨクバリス", "ココガラ", "アオガラス", "サッチムシ",
+                    "レドームシ", "イオルブ", "カジリガメ", "タンドン", "トロッゴン", "カジッチュ", "タルップル", "スナヘビ", "サダイジャ",
+                    "サシカマス", "エレズン", "ヤクデ", "マルヤクデ", "タタッコ", "オトスパス", "ヤバチャ", "ポットデス", "ミブリム",
+                    "テブリム", "ブリムオン", "ベロバー", "ギモー", "オーロンゲ", "バリコオル", "デスバーン", "マホイップ", "タイレーツ",
+                    "バチンウニ", "ユキハミ", "コオリッポ", "イエッサン", "モルペコ", "ドラメシヤ", "ブリザポス", "レイスポス"
+                ],
+                'パルデア': [
+                    "ニャオハ", "ホゲータ", "クワッス", "パモ", "ハラバリー", "オーガポン", "ニャローテ", "アチゲータ", "ウェルカモ",
+                    "パモット", "パーモット", "グルトン", "ワナイダー", "マメバッタ", "パピモッチ", "ボチ", "ハカドッグ", "ミニーブ",
+                    "オリーニョ", "オリーヴァ", "イキリンコ", "カイデン", "ノノクラゲ", "リククラゲ", "ガケガニ", "カラミンゴ", "アルクジラ",
+                    "ハルクジラ", "ミガルーサ", "シャリタツ", "コレクレー", "サーフゴー", "パオジアン", "ディンルー", "イーユイ"
+                ],
+                'そのほか': [
+                    "モコココ", "パイン", "ドランチ"
+                ]
+            },
             NAMES: [
                 "ピカチュウ", "イーブイ", "ルカリオ", "ロコン", "ニャオハ", "ポッチャマ", "プリン", "ゲンガー",
                 "メタモン", "コダック", "カビゴン", "カイリュー", "トゲピー", "ハッサム", "ミミッキュ", "ガブリアス",
@@ -417,10 +556,51 @@
             ]
         };
         const LEGENDARY_LIST = PokemonData.LEGENDARY;
+        const REGION_ORDER = ['カントー', 'ジョウト', 'ホウエン', 'シンオウ', 'イッシュ', 'カロス', 'アローラ', 'ガラル', 'パルデア', 'そのほか'];
+        const REGION_OF = {};
+        REGION_ORDER.forEach(r => (PokemonData.REGIONS[r] || []).forEach(n => { REGION_OF[n] = r; }));
         const ADDED_LIST = PokemonData.NAMES;
         // 重複削除と5文字以内フィルタ
         const POKEMON_LIST = Array.from(new Set([...LEGENDARY_LIST, ...ADDED_LIST])).filter(p => p.length <= 5);
         const CHARS = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
+
+        // ===== モード定義（Phase 1: 難易度とのんびりモード） =====
+        const MODES = {
+            easy:   { label: 'やさしい',   timeLimit: 90,       bonus: 3, legendBonus: 6, hintDelays: [3000, 6000, 10000],  scoreMul: 1, desc: '90びょう・ヒントはやめ・ボーナスおおめ' },
+            normal: { label: 'ふつう',     timeLimit: 60,       bonus: 2, legendBonus: 5, hintDelays: [5000, 10000, 15000], scoreMul: 1, desc: '60びょう・いつものポケなぞ' },
+            hard:   { label: 'むずかしい', timeLimit: 45,       bonus: 1, legendBonus: 3, hintDelays: [8000, 15000, 22000], scoreMul: 2, desc: '45びょう・ヒントおそめ・スコア2ばい' },
+            relax:  { label: 'のんびり',   timeLimit: Infinity, bonus: 0, legendBonus: 0, hintDelays: [3000, 6000, 10000],  scoreMul: 1, desc: 'じかんせいげんなし・おわるボタンで しゅうりょう' }
+        };
+
+        // ===== 実績バッジ（Phase 2） =====
+        const BADGES = [
+            { id: 'first-play', icon: '👣', name: 'はじめのいっぽ', desc: 'はじめて あそびきった', test: s => s.plays >= 1 },
+            { id: 'dex-10', icon: '📕', name: 'ずかん10', desc: 'ずかん 10ひき', test: s => s.dex >= 10 },
+            { id: 'dex-50', icon: '📗', name: 'ずかん50', desc: 'ずかん 50ひき', test: s => s.dex >= 50 },
+            { id: 'dex-100', icon: '📘', name: 'ずかん100', desc: 'ずかん 100ひき', test: s => s.dex >= 100 },
+            { id: 'dex-300', icon: '📙', name: 'ずかん300', desc: 'ずかん 300ひき', test: s => s.dex >= 300 },
+            { id: 'first-legend', icon: '🌟', name: 'でんせつデビュー', desc: 'でんせつを はじめて ゲット', test: s => s.legend >= 1 },
+            { id: 'legend-10', icon: '👑', name: 'でんせつハンター', desc: 'でんせつ 10ひき', test: s => s.legend >= 10 },
+            { id: 'score-1000', icon: '💯', name: 'スコア1000', desc: 'どれかのモードで 1000てん', test: s => s.best >= 1000 },
+            { id: 'region-full', icon: '🗾', name: 'ちほうせいは', desc: 'どこかの ちほうの ずかん コンプリート', test: s => s.regionFull >= 1 },
+            { id: 'dex-all', icon: '🏆', name: 'ずかんコンプリート', desc: 'ぜんぶの ポケモンを ゲット', test: s => s.dex >= POKEMON_LIST.length }
+        ];
+
+        function computeStats() {
+            const bests = (SaveData.data && SaveData.data.bests) || {};
+            let regionFull = 0;
+            REGION_ORDER.forEach(r => {
+                const names = PokemonData.REGIONS[r] || [];
+                if (names.length > 0 && names.every(n => state.pokedex.has(n))) regionFull++;
+            });
+            return {
+                dex: state.pokedex.size,
+                legend: Array.from(state.pokedex).filter(n => LEGENDARY_LIST.includes(n)).length,
+                best: Math.max(0, ...Object.values(bests)),
+                plays: (SaveData.data && SaveData.data.plays) || 0,
+                regionFull
+            };
+        }
 
         // ===== 盤面生成（純粋関数: DOMや状態に触らないので単体テスト可能） =====
         const BoardFactory = {
@@ -455,36 +635,89 @@
         // ===== 保存（ずかん・ベストスコア・音設定を端末に残す） =====
         const SaveData = {
             KEY: 'pokenazo-save-v1',
-            data: { pokedex: [], best: 0, muted: false },
+            data: { pokedex: [], best: 0, bests: {}, muted: false, mode: 'normal', badges: [], plays: 0 },
             load() {
                 try {
                     const raw = localStorage.getItem(this.KEY);
                     if (raw) this.data = Object.assign(this.data, JSON.parse(raw));
                 } catch (e) { /* 壊れた保存は無視 */ }
+                // 旧形式（best単体）からモード別ベストへ移行
+                if (this.data.best && !(this.data.bests && this.data.bests.normal)) {
+                    this.data.bests = Object.assign({}, this.data.bests, { normal: this.data.best });
+                }
                 state.pokedex = new Set((this.data.pokedex || []).filter(n => POKEMON_LIST.includes(n)));
                 AudioEngine.isMuted = !!this.data.muted;
+                state.mode = MODES[this.data.mode] ? this.data.mode : 'normal';
+                state.settings = MODES[state.mode];
+                this.awardBadges();
             },
             save() {
                 this.data.pokedex = Array.from(state.pokedex);
                 try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) { /* 保存できなくても遊べる */ }
             },
             saveBest(score) {
-                if (score > (this.data.best || 0)) {
-                    this.data.best = score;
+                if (!this.data.bests) this.data.bests = {};
+                if (score > (this.data.bests[state.mode] || 0)) {
+                    this.data.bests[state.mode] = score;
                     this.save();
                     return true;
                 }
                 return false;
             },
+            bestFor(mode) {
+                return (this.data.bests && this.data.bests[mode]) || 0;
+            },
             saveMuted(m) {
                 this.data.muted = m;
                 this.save();
+            },
+            saveMode(m) {
+                this.data.mode = m;
+                this.save();
+            },
+            addPlay() {
+                this.data.plays = (this.data.plays || 0) + 1;
+                this.save();
+            },
+            awardBadges() {
+                if (!Array.isArray(this.data.badges)) this.data.badges = [];
+                const stats = computeStats();
+                const newly = [];
+                BADGES.forEach(b => {
+                    if (!this.data.badges.includes(b.id) && b.test(stats)) {
+                        this.data.badges.push(b.id);
+                        newly.push(b);
+                    }
+                });
+                if (newly.length > 0) this.save();
+                return newly;
+            },
+            hasBadge(id) {
+                return Array.isArray(this.data.badges) && this.data.badges.includes(id);
             }
         };
 
+        // モード選択（スタート画面のチップ）
+        function selectMode(m) {
+            if (!MODES[m]) return;
+            state.mode = m;
+            state.settings = MODES[m];
+            if (Deps.storage) Deps.storage.saveMode(m);
+            refreshModeUI();
+            updateStartProgress();
+        }
+
+        function refreshModeUI() {
+            document.querySelectorAll('#mode-select .mode-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.mode === state.mode);
+            });
+            const desc = document.getElementById('mode-desc');
+            if (desc && state.settings) desc.innerText = state.settings.desc;
+        }
+
         function updateStartProgress() {
             const el = document.getElementById('start-progress');
-            if (el) el.innerText = `ずかん ${state.pokedex.size} / ${POKEMON_LIST.length}　・　ベスト ${(SaveData.data.best || 0)}てん`;
+            if (el) el.innerText = `ずかん ${state.pokedex.size} / ${POKEMON_LIST.length}　・　ベスト（${state.settings ? state.settings.label : 'ふつう'}）${SaveData.bestFor(state.mode)}てん`;
         }
 
         const AudioEngine = {
@@ -542,6 +775,10 @@
             isRunning: false,
             score: 0,
             timeLeft: 60,
+            mode: 'normal',
+            settings: null,
+            finishedOnce: false,
+            quitEarly: false,
             pokedex: new Set(),
             board: [],
             selectedIndices: [],
@@ -560,7 +797,8 @@
             updateHUD() {
                 document.getElementById('score-display').innerText = state.score;
                 document.getElementById('found-count').innerText = `${state.pokedex.size}/${POKEMON_LIST.length}`;
-                document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / 60 * 100)) + "%";
+                const limit = state.settings && isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 60;
+                document.getElementById('timer-bar').style.width = Math.max(0, (state.timeLeft / limit * 100)) + "%";
             },
             renderBoard() {
                 const grid = document.getElementById('grid');
@@ -598,27 +836,35 @@
                 const box = document.getElementById('toast-box');
                 const sub = document.getElementById('toast-sub');
                 document.getElementById('toast-word').innerText = w;
+                const st = state.settings || MODES.normal;
+                const bonusTxt = (isLegend ? st.legendBonus : st.bonus) > 0 ? ` +${isLegend ? st.legendBonus : st.bonus}s` : '';
+                if (isNew) {
+                    box.classList.remove('new-pop');
+                    void box.offsetWidth;
+                    box.classList.add('new-pop');
+                    this.createConfetti();
+                }
                 if (isLegend) {
                     box.style.borderColor = 'var(--gold)';
-                    sub.innerText = isNew ? '✨NEW LEGENDARY!! +5s' : 'LEGENDARY!! +5s';
+                    sub.innerText = (isNew ? '✨NEW LEGENDARY!!' : 'LEGENDARY!!') + bonusTxt;
                     sub.style.color = '#854d0e';
                     this.createConfetti();
                 } else {
                     box.style.borderColor = isNew ? '#f59e0b' : 'var(--primary)';
-                    sub.innerText = isNew ? '✨NEW! +2s' : 'GET! +2s';
+                    sub.innerText = (isNew ? '✨NEW!' : 'GET!') + bonusTxt;
                     sub.style.color = isNew ? '#f59e0b' : 'var(--danger)';
                 }
                 t.style.opacity = '1';
                 box.style.transform = 'scale(1)';
-                setTimeout(() => { t.style.opacity = '0'; box.style.transform = 'scale(0.5)'; }, 1500);
+                setTimeout(() => { t.style.opacity = '0'; box.style.transform = 'scale(0.5)'; box.classList.remove('new-pop'); }, 1500);
             },
             showNewPokemonEffect() {
                 // キラキラエフェクト
-                for (let i = 0; i < 8; i++) {
+                for (let i = 0; i < 14; i++) {
                     setTimeout(() => {
                         const sparkle = document.createElement('div');
                         sparkle.className = 'sparkle';
-                        sparkle.innerText = '✨';
+                        sparkle.innerText = i % 3 === 0 ? '⭐' : '✨';
                         sparkle.style.left = (30 + Math.random() * 40) + '%';
                         sparkle.style.top = (30 + Math.random() * 40) + '%';
                         sparkle.style.fontSize = (20 + Math.random() * 20) + 'px';
@@ -651,16 +897,63 @@
             openPokedex() {
                 const list = document.getElementById('pokedex-list');
                 list.innerHTML = '';
-                POKEMON_LIST.forEach(n => {
-                    const isFound = state.pokedex.has(n);
-                    const isLegend = LEGENDARY_LIST.includes(n);
-                    const div = document.createElement('div');
-                    div.className = `p-2 rounded-2xl text-center font-black text-[10px] min-h-[50px] flex items-center justify-center border-2 ${isFound ? (isLegend ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-sky-50 border-sky-200 text-sky-500') : 'bg-white border-slate-50 text-slate-200'}`;
-                    div.innerText = isFound ? (isLegend ? '🌟' + n : n) : '？';
-                    list.appendChild(div);
+                REGION_ORDER.forEach(region => {
+                    const names = PokemonData.REGIONS[region] || [];
+                    if (names.length === 0) return;
+                    const got = names.filter(n => state.pokedex.has(n)).length;
+                    const header = document.createElement('div');
+                    header.className = 'flex justify-between items-center mt-4 mb-2 px-1';
+                    const title = document.createElement('span');
+                    title.className = 'font-black text-sky-600 text-sm';
+                    title.innerText = region;
+                    const count = document.createElement('span');
+                    count.className = 'font-bold text-slate-400 text-xs';
+                    count.innerText = got + ' / ' + names.length + (got === names.length ? ' 👑' : '');
+                    header.appendChild(title);
+                    header.appendChild(count);
+                    list.appendChild(header);
+                    const grid = document.createElement('div');
+                    grid.className = 'grid grid-cols-3 gap-3';
+                    names.forEach(n => {
+                        const isFound = state.pokedex.has(n);
+                        const isLegend = LEGENDARY_LIST.includes(n);
+                        const div = document.createElement('div');
+                        div.className = `p-2 rounded-2xl text-center font-black text-[10px] min-h-[50px] flex items-center justify-center border-2 ${isFound ? (isLegend ? 'bg-yellow-100 border-yellow-400 text-yellow-700' : 'bg-sky-50 border-sky-200 text-sky-500') : 'bg-white border-slate-50 text-slate-200'}`;
+                        div.innerText = isFound ? (isLegend ? '🌟' + n : n) : '？';
+                        grid.appendChild(div);
+                    });
+                    list.appendChild(grid);
                 });
                 document.getElementById('pokedex-progress').innerText = `${state.pokedex.size} / ${POKEMON_LIST.length}`;
+                this.renderBadges();
                 this.switchScreen('pokedex-screen');
+            },
+            renderBadges() {
+                const shelf = document.getElementById('badge-shelf');
+                if (!shelf) return;
+                shelf.innerHTML = '';
+                const earnedCount = BADGES.filter(b => SaveData.hasBadge(b.id)).length;
+                const title = document.createElement('div');
+                title.className = 'font-black text-amber-500 text-sm mb-2 px-1';
+                title.innerText = `🏅 バッジ ${earnedCount} / ${BADGES.length}`;
+                shelf.appendChild(title);
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-2 gap-2';
+                BADGES.forEach(b => {
+                    const has = SaveData.hasBadge(b.id);
+                    const div = document.createElement('div');
+                    div.className = `p-2 rounded-2xl border-2 text-left ${has ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-100 opacity-60'}`;
+                    const name = document.createElement('div');
+                    name.className = 'font-black text-[11px] ' + (has ? 'text-amber-600' : 'text-slate-400');
+                    name.innerText = (has ? b.icon : '🔒') + ' ' + b.name;
+                    const desc = document.createElement('div');
+                    desc.className = 'text-[9px] font-bold text-slate-400';
+                    desc.innerText = b.desc;
+                    div.appendChild(name);
+                    div.appendChild(desc);
+                    grid.appendChild(div);
+                });
+                shelf.appendChild(grid);
             },
             closePokedex() { this.switchScreen(state.isRunning ? null : (state.finishedOnce ? 'result-screen' : 'start-overlay')); }
         };
@@ -669,16 +962,24 @@
             init() {
                 Deps.audio.init();
                 Deps.audio.updateBGM('game');
+                state.settings = MODES[state.mode] || MODES.normal;
                 state.isRunning = true;
                 state.score = 0;
-                state.timeLeft = 60;
+                state.timeLeft = isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 0;
+                document.getElementById('timer-wrap').style.display = isFinite(state.settings.timeLimit) ? '' : 'none';
+                state.quitEarly = false;
+                const quitBtn = document.getElementById('quit-btn');
+                quitBtn.style.display = '';
+                quitBtn.innerText = state.mode === 'relax' ? '⏹ おわる' : '⏹ やめる';
                 UI.switchScreen(null);
                 this.nextStage();
                 if (state.mainTimer) clearInterval(state.mainTimer);
                 state.mainTimer = setInterval(() => {
                     if (!state.isRunning || document.hidden) return;
-                    state.timeLeft -= 0.1;
-                    if (state.timeLeft <= 0) this.end();
+                    if (isFinite(state.settings.timeLimit)) {
+                        state.timeLeft -= 0.1;
+                        if (state.timeLeft <= 0) this.end();
+                    }
                     UI.updateHUD();
                 }, 100);
             },
@@ -709,9 +1010,10 @@
             startHintTimers() {
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
-                state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), 5000));
-                state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), 10000));
-                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), 15000));
+                const delays = (state.settings && state.settings.hintDelays) || [5000, 10000, 15000];
+                state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), delays[0]));
+                state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), delays[1]));
+                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), delays[2]));
             },
             clearHintTimers() {
                 state.hintTimers.forEach(clearTimeout);
@@ -724,8 +1026,11 @@
                     const isLegend = LEGENDARY_LIST.includes(word);
                     const isNew = !state.pokedex.has(word);
                     Deps.audio.playSuccess(isLegend);
-                    state.score += isLegend ? 500 : 100;
-                    state.timeLeft = Math.min(60, state.timeLeft + (isLegend ? 5 : 2));
+                    const st = state.settings || MODES.normal;
+                    state.score += (isLegend ? 500 : 100) * (st.scoreMul || 1);
+                    if (isFinite(st.timeLimit)) {
+                        state.timeLeft = Math.min(st.timeLimit, state.timeLeft + (isLegend ? st.legendBonus : st.bonus));
+                    }
                     state.pokedex.add(word);
                     if (isNew) Deps.storage.save();
                     state.selectedIndices.forEach(idx => {
@@ -739,11 +1044,39 @@
                     setTimeout(() => { if (state.isRunning) this.nextStage(); }, 1000);
                 }
             },
+            quit() {
+                state.quitEarly = true;
+                this.end();
+            },
+            toTitle() {
+                state.isRunning = false;
+                if (state.mainTimer) clearInterval(state.mainTimer);
+                this.clearHintTimers();
+                Deps.audio.updateBGM('title');
+                document.getElementById('quit-btn').style.display = 'none';
+                document.getElementById('timer-wrap').style.display = '';
+                refreshModeUI();
+                updateStartProgress();
+                UI.switchScreen('start-overlay');
+            },
             end() {
                 state.isRunning = false;
                 state.finishedOnce = true;
                 const isNewRecord = Deps.storage.saveBest(state.score);
-                document.getElementById('final-best').innerText = SaveData.data.best || 0;
+                Deps.storage.addPlay();
+                const newBadges = Deps.storage.awardBadges();
+                const badgeEl = document.getElementById('new-badges');
+                if (newBadges.length > 0) {
+                    badgeEl.innerText = '🏅 バッジゲット！ ' + newBadges.map(b => b.icon + b.name).join(' ／ ');
+                    badgeEl.style.display = '';
+                } else {
+                    badgeEl.style.display = 'none';
+                }
+                document.getElementById('result-title').innerText = (state.mode === 'relax' || state.quitEarly) ? 'おつかれさま！' : 'TIME UP!';
+                document.getElementById('final-best-label').innerText = `BEST（${state.settings ? state.settings.label : 'ふつう'}）`;
+                document.getElementById('final-best').innerText = Deps.storage.bestFor(state.mode);
+                document.getElementById('quit-btn').style.display = 'none';
+                document.getElementById('timer-wrap').style.display = '';
                 document.getElementById('new-record').style.display = (isNewRecord && state.score > 0) ? 'block' : 'none';
                 this.clearHintTimers();
                 clearInterval(state.mainTimer);
@@ -822,6 +1155,7 @@
         window.onload = () => {
             SaveData.load();
             document.getElementById('bgm-toggle').innerText = AudioEngine.isMuted ? '🔇' : '🔊';
+            refreshModeUI();
             updateStartProgress();
             UI.updateHUD();
             setupEvents();
