@@ -242,6 +242,24 @@
         #bg-deco span { position: absolute; font-size: 22px; opacity: 0.3; animation: floaty 5s ease-in-out infinite alternate; }
         @keyframes floaty { from { transform: translateY(-8px) rotate(-8deg); } to { transform: translateY(12px) rotate(10deg); } }
         #game-hud, main { position: relative; z-index: 1; }
+        /* ===== フィーバー ===== */
+        @keyframes comboPop { 40% { transform: scale(1.25); } }
+        .combo-pop { animation: comboPop 0.25s ease; }
+        body.fever #grid { filter: drop-shadow(0 0 18px rgba(245, 158, 11, 0.55)); }
+        #fever-banner {
+            position: fixed; left: 50%; top: 36%; transform: translate(-50%, -50%) scale(0.5);
+            font-size: 3rem; font-weight: 900; color: #f59e0b; white-space: nowrap;
+            text-shadow: 0 4px 0 #fff, 0 8px 24px rgba(245, 158, 11, 0.5);
+            opacity: 0; pointer-events: none; z-index: 1100;
+        }
+        #fever-banner.show { animation: feverBanner 1.4s ease forwards; }
+        @keyframes feverBanner {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(-6deg); }
+            25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(2deg); }
+            45% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+            75% { opacity: 1; }
+            100% { opacity: 0; transform: translate(-50%, -60%) scale(1.05); }
+        }
     </style>
 </head>
 <body class="flex flex-col items-center min-h-screen">
@@ -273,6 +291,10 @@
         </div>
         <div id="timer-wrap" class="w-full h-4 bg-white border-4 border-amber-200 rounded-full overflow-hidden shadow-inner">
             <div id="timer-bar" class="h-full bg-rose-400 transition-all duration-100" style="width: 100%"></div>
+        </div>
+        <div id="combo-display" class="text-center font-black text-orange-500 text-sm" style="display:none"></div>
+        <div id="fever-bar-wrap" class="w-full h-3 bg-white border-2 border-orange-200 rounded-full overflow-hidden" style="display:none">
+            <div id="fever-bar" class="h-full bg-gradient-to-r from-amber-400 to-orange-500" style="width: 100%"></div>
         </div>
     </div>
 
@@ -387,6 +409,7 @@
     </div>
 
     <!-- TOAST -->
+    <div id="fever-banner">🔥 FEVER！ 🔥</div>
     <div id="danger-vignette"></div>
     <div id="bg-deco" aria-hidden="true">
         <span style="left:6%; top:10%">⭐</span>
@@ -923,8 +946,8 @@
                 o.connect(g); g.connect(this.masterGain);
                 o.start(); o.stop(this.ctx.currentTime + dur);
             },
-            playSuccess(isLegend) {
-                if (this.playSE(isLegend ? 'legend' : 'get')) return;
+            playSuccess(isLegend, rate = 1) {
+                if (this.playSE(isLegend ? 'legend' : 'get', rate)) return;
                 const base = isLegend ? 880 : 523.25;
                 const type = isLegend ? 'square' : 'triangle';
                 this.playTone(base, type, 0.4);
@@ -1001,6 +1024,11 @@
             targetWord: null,
             targetIndices: [],
             hintTimers: [],
+            streak: 0,
+            fever: false,
+            feverLeft: 0,
+            feverClears: 0,
+            stageFullHint: false,
             mainTimer: null
         };
 
@@ -1008,6 +1036,32 @@
             switchScreen(id) {
                 document.querySelectorAll('.screen').forEach(s => s.classList.remove('active-screen'));
                 if (id) document.getElementById(id).classList.add('active-screen');
+            },
+            updateFeverUI(pop = true) {
+                const el = document.getElementById('combo-display');
+                if (!el) return;
+                const barWrap = document.getElementById('fever-bar-wrap');
+                const bar = document.getElementById('fever-bar');
+                if (state.fever) {
+                    const nextMul = Math.min(2 + state.feverClears, 5);
+                    const timed = state.settings && isFinite(state.settings.timeLimit);
+                    el.innerText = timed
+                        ? '🔥 FEVER あと ' + Math.max(0, Math.ceil(state.feverLeft)) + 'びょう ・ つぎは スコア×' + nextMul
+                        : '🔥 FEVER！ つぎは スコア×' + nextMul;
+                    el.style.display = '';
+                    if (barWrap) {
+                        barWrap.style.display = timed ? '' : 'none';
+                        if (bar) bar.style.width = Math.max(0, state.feverLeft / 15 * 100) + '%';
+                    }
+                } else if (state.streak >= 2) {
+                    el.innerText = '🔥 ' + state.streak + 'れんぞく！ あと ' + (5 - state.streak) + ' で フィーバー';
+                    el.style.display = '';
+                    if (barWrap) barWrap.style.display = 'none';
+                } else {
+                    el.style.display = 'none';
+                    if (barWrap) barWrap.style.display = 'none';
+                }
+                if (pop) { el.classList.remove('combo-pop'); void el.offsetWidth; el.classList.add('combo-pop'); }
             },
             updateHUD() {
                 const scoreEl = document.getElementById('score-display');
@@ -1198,12 +1252,18 @@
                 state.score = 0;
                 state.timeLeft = isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 0;
                 document.getElementById('timer-wrap').style.display = isFinite(state.settings.timeLimit) ? '' : 'none';
+                state.streak = 0;
+                state.fever = false;
+                state.feverLeft = 0;
+                state.feverClears = 0;
+                document.body.classList.remove('fever');
                 state.quitEarly = false;
                 const quitBtn = document.getElementById('quit-btn');
                 quitBtn.style.display = '';
                 quitBtn.innerText = state.mode === 'relax' ? '⏹ おわる' : '⏹ やめる';
                 UI.switchScreen(null);
                 this.nextStage();
+                UI.updateFeverUI(false);
                 if (state.mainTimer) clearInterval(state.mainTimer);
                 state.mainTimer = setInterval(() => {
                     if (!state.isRunning || document.hidden) return;
@@ -1211,11 +1271,17 @@
                         state.timeLeft -= 0.1;
                         if (state.timeLeft <= 0) this.end();
                     }
+                    if (state.fever && state.settings && isFinite(state.settings.timeLimit)) {
+                        state.feverLeft -= 0.1;
+                        if (state.feverLeft <= 0) this.endFever();
+                        else UI.updateFeverUI(false);
+                    }
                     UI.updateHUD();
                 }, 100);
             },
             nextStage() {
                 this.clearHintTimers();
+                state.stageFullHint = false;
 
                 // 出題テーマでプールを切り替え、未収集を優先的に選択
                 const pool = scopePool(state.scope);
@@ -1241,14 +1307,41 @@
             startHintTimers() {
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
-                const delays = (state.settings && state.settings.hintDelays) || [5000, 10000, 15000];
+                const delays = state.fever ? [400, 900, 4000] : ((state.settings && state.settings.hintDelays) || [5000, 10000, 15000]);
                 state.hintTimers.push(setTimeout(() => nonTargetIndices.slice(0, 12).forEach((idx, i) => setTimeout(() => cells()[idx]?.classList.add('fade-out'), i * 50)), delays[0]));
                 state.hintTimers.push(setTimeout(() => cells()[state.targetIndices[0]]?.classList.add('hint-highlight-first'), delays[1]));
-                state.hintTimers.push(setTimeout(() => state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all')), delays[2]));
+                state.hintTimers.push(setTimeout(() => {
+                    state.targetIndices.forEach(idx => cells()[idx]?.classList.add('hint-highlight-all'));
+                    this.onFullHint();
+                }, delays[2]));
             },
             clearHintTimers() {
                 state.hintTimers.forEach(clearTimeout);
                 state.hintTimers = [];
+            },
+            onFullHint() {
+                state.stageFullHint = true;
+                if (state.fever) this.endFever();
+                else if (state.streak > 0) { state.streak = 0; UI.updateFeverUI(true); }
+            },
+            enterFever() {
+                state.fever = true;
+                state.feverClears = 0;
+                state.feverLeft = 15;
+                document.body.classList.add('fever');
+                Deps.audio.playBadge();
+                const banner = document.getElementById('fever-banner');
+                if (banner) { banner.classList.remove('show'); void banner.offsetWidth; banner.classList.add('show'); }
+                UI.createConfetti();
+                UI.updateFeverUI(true);
+            },
+            endFever() {
+                if (!state.fever) return;
+                state.fever = false;
+                state.feverLeft = 0;
+                state.streak = 0;
+                document.body.classList.remove('fever');
+                UI.updateFeverUI(true);
             },
             checkAnswer() {
                 const word = state.selectedIndices.map(i => state.board[i]).join('');
@@ -1256,9 +1349,19 @@
                     this.clearHintTimers();
                     const isLegend = LEGENDARY_LIST.includes(word);
                     const isNew = !state.pokedex.has(word);
-                    Deps.audio.playSuccess(isLegend);
                     const st = state.settings || MODES.normal;
-                    state.score += (isLegend ? 500 : 100) * (st.scoreMul || 1);
+                    let feverMul = 1;
+                    if (state.fever) {
+                        state.feverClears++;
+                        feverMul = Math.min(1 + state.feverClears, 5);
+                        if (isFinite(st.timeLimit)) state.feverLeft = Math.min(15, state.feverLeft + 2);
+                    } else if (!state.stageFullHint) {
+                        state.streak++;
+                    }
+                    Deps.audio.playSuccess(isLegend, 1 + Math.min(state.fever ? state.feverClears : state.streak, 8) * 0.05);
+                    state.score += (isLegend ? 500 : 100) * (st.scoreMul || 1) * feverMul;
+                    if (!state.fever && state.streak >= 5) this.enterFever();
+                    else UI.updateFeverUI(true);
                     if (isFinite(st.timeLimit)) {
                         state.timeLeft = Math.min(st.timeLimit, state.timeLeft + (isLegend ? st.legendBonus : st.bonus));
                     }
@@ -1284,6 +1387,9 @@
                 if (state.mainTimer) clearInterval(state.mainTimer);
                 this.clearHintTimers();
                 document.body.classList.remove('danger');
+                state.fever = false;
+                state.streak = 0;
+                document.body.classList.remove('fever');
                 Deps.audio.updateBGM('title');
                 document.getElementById('quit-btn').style.display = 'none';
                 document.getElementById('timer-wrap').style.display = '';
@@ -1294,6 +1400,8 @@
             },
             end() {
                 state.isRunning = false;
+                state.fever = false;
+                document.body.classList.remove('fever');
                 state.finishedOnce = true;
                 const isNewRecord = Deps.storage.saveBest(state.score);
                 Deps.storage.addPlay();
