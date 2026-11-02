@@ -216,7 +216,7 @@
                 <button onclick="UI.openPokedex()" class="bubble-btn px-4 py-2 text-sky-500 font-black text-xs">
                     📕 ずかん
                 </button>
-                <button id="quit-btn" onclick="Game.end()" class="bubble-btn px-4 py-2 text-rose-500 font-black text-xs" style="display:none">
+                <button id="quit-btn" onclick="Game.quit()" class="bubble-btn px-4 py-2 text-rose-500 font-black text-xs" style="display:none">
                     ⏹ おわる
                 </button>
             </div>
@@ -295,6 +295,7 @@
             </div>
         </div>
         <button onclick="Game.init()" class="w-full max-w-xs bg-sky-400 text-white text-xl font-black py-5 rounded-3xl shadow-[0_8px_0_#0284c7] mb-4">もういっかい！</button>
+        <button onclick="Game.toTitle()" class="w-full max-w-xs bg-white text-sky-500 text-lg font-black py-4 rounded-3xl shadow-[0_6px_0_#bae6fd] border-4 border-sky-200 mb-4">タイトルにもどる</button>
         <button onclick="UI.openPokedex()" class="text-sky-400 font-bold">ずかんを みる</button>
     </div>
 
@@ -601,6 +602,7 @@
             mode: 'normal',
             settings: null,
             finishedOnce: false,
+            quitEarly: false,
             pokedex: new Set(),
             board: [],
             selectedIndices: [],
@@ -736,7 +738,10 @@
                 state.score = 0;
                 state.timeLeft = isFinite(state.settings.timeLimit) ? state.settings.timeLimit : 0;
                 document.getElementById('timer-wrap').style.display = isFinite(state.settings.timeLimit) ? '' : 'none';
-                document.getElementById('quit-btn').style.display = state.mode === 'relax' ? '' : 'none';
+                state.quitEarly = false;
+                const quitBtn = document.getElementById('quit-btn');
+                quitBtn.style.display = '';
+                quitBtn.innerText = state.mode === 'relax' ? '⏹ おわる' : '⏹ やめる';
                 UI.switchScreen(null);
                 this.nextStage();
                 if (state.mainTimer) clearInterval(state.mainTimer);
@@ -810,11 +815,26 @@
                     setTimeout(() => { if (state.isRunning) this.nextStage(); }, 1000);
                 }
             },
+            quit() {
+                state.quitEarly = true;
+                this.end();
+            },
+            toTitle() {
+                state.isRunning = false;
+                if (state.mainTimer) clearInterval(state.mainTimer);
+                this.clearHintTimers();
+                Deps.audio.updateBGM('title');
+                document.getElementById('quit-btn').style.display = 'none';
+                document.getElementById('timer-wrap').style.display = '';
+                refreshModeUI();
+                updateStartProgress();
+                UI.switchScreen('start-overlay');
+            },
             end() {
                 state.isRunning = false;
                 state.finishedOnce = true;
                 const isNewRecord = Deps.storage.saveBest(state.score);
-                document.getElementById('result-title').innerText = state.mode === 'relax' ? 'おつかれさま！' : 'TIME UP!';
+                document.getElementById('result-title').innerText = (state.mode === 'relax' || state.quitEarly) ? 'おつかれさま！' : 'TIME UP!';
                 document.getElementById('final-best-label').innerText = `BEST（${state.settings ? state.settings.label : 'ふつう'}）`;
                 document.getElementById('final-best').innerText = Deps.storage.bestFor(state.mode);
                 document.getElementById('quit-btn').style.display = 'none';
