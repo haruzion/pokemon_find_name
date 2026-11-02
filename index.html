@@ -1321,12 +1321,12 @@
             startHintTimers() {
                 const cells = () => document.querySelectorAll('.cell');
                 const nonTargetIndices = state.board.map((_, i) => i).filter(i => !state.targetIndices.includes(i)).sort(() => Math.random() - 0.5);
-                const delays = state.fever ? [400, 900, 4000] : ((state.settings && state.settings.hintDelays) || [5000, 10000, 15000]);
+                const delays = state.fever ? [700, 1800, 5000] : ((state.settings && state.settings.hintDelays) || [5000, 10000, 15000]);
                 state.hintTimers.push(setTimeout(() => {
                     // 関係ない文字が1個ずつ、だんだん速く消えていく（緊迫感）
                     let acc = 0;
-                    let interval = state.fever ? 95 : 150;
-                    const shrink = state.fever ? 0.74 : 0.82;
+                    let interval = state.fever ? 170 : 150;
+                    const shrink = state.fever ? 0.85 : 0.82;
                     nonTargetIndices.slice(0, 12).forEach((idx) => {
                         const d = acc;
                         state.hintTimers.push(setTimeout(() => cells()[idx]?.classList.add('fade-out'), d));
